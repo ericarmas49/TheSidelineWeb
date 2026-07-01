@@ -1,0 +1,11 @@
+{
+  "name": "the-sideline-web",
+  "private": true,
+  "description": "SideLine marketing site",
+  "scripts": {
+    "dev": "node scripts/local-wp-proxy.mjs 8080",
+    "dev:static": "python3 -m http.server 8080",
+    "dev:vercel": "vercel dev --listen 8080",
+    "deploy": "vercel --prod"
+  }
+}
