@@ -38,54 +38,106 @@ function bootCtaLogoGrid() {
   grid.innerHTML = buildCtaLogoGridMarkup();
 }
 
-function bootFeaturePhoneEntrances() {
+function observeFeatureEntrance(target, onReveal, delayMs = 400) {
+  if (!target) return;
+
+  if (!("IntersectionObserver" in window)) {
+    onReveal();
+    return;
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting || entry.intersectionRatio < 0.35) return;
+        observer.disconnect();
+        window.setTimeout(onReveal, delayMs);
+      });
+    },
+    { root: null, threshold: [0, 0.35, 0.5], rootMargin: "0px 0px -15% 0px" },
+  );
+
+  observer.observe(target);
+}
+
+function bootFeatureContentEntrances() {
   if (prefersReducedMotion) return;
 
-  const PHONE_ENTER_DELAY_MS = 400;
-  const phoneSelectors = [
-    "#sl-features-stage .sl-feature-phone",
-    "#sl-personalization .sl-feature-phone",
-    "#sl-filters .sl-feature-phone",
+  const CONTENT_ENTER_DELAY_MS = 400;
+  const contentSelectors = [
+    "#sl-features-story .sl-features-text-wrap .sl-feature-text",
+    "#sl-personalization .sl-feature-text",
+    "#sl-filters .sl-feature-text",
   ];
 
-  phoneSelectors.forEach((selector) => {
-    const phone = document.querySelector(selector);
-    if (!phone) return;
+  contentSelectors.forEach((selector) => {
+    const content = document.querySelector(selector);
+    if (!content) return;
 
-    phone.classList.add("is-phone-enter-pending");
+    content.classList.add("is-content-enter-pending");
 
-    const revealPhone = () => {
-      phone.classList.remove("is-phone-enter-pending");
+    observeFeatureEntrance(content, () => {
+      content.classList.remove("is-content-enter-pending");
 
       if (window.gsap) {
         gsap.fromTo(
-          phone,
+          content,
           { autoAlpha: 0, y: 56 },
           { autoAlpha: 1, y: 0, duration: 1, ease: "power3.out", delay: 0.05 },
         );
         return;
       }
 
+      content.classList.add("is-content-enter-revealed");
+    }, CONTENT_ENTER_DELAY_MS);
+  });
+}
+
+function bootFeaturePhoneEntrances() {
+  if (prefersReducedMotion) return;
+
+  const PHONE_ENTER_DELAY_MS = 250;
+  const phoneEntrances = [
+    { selector: "#sl-features-story .sl-feature-phone", from: "left" },
+    { selector: "#sl-personalization .sl-feature-phone", from: "right" },
+    { selector: "#sl-filters .sl-feature-phone", from: "left" },
+  ];
+
+  phoneEntrances.forEach(({ selector, from }) => {
+    const phone = document.querySelector(selector);
+    if (!phone) return;
+
+    phone.classList.add("is-phone-enter-pending", `is-phone-enter-from-${from}`);
+
+    observeFeatureEntrance(phone, () => {
+      phone.classList.remove("is-phone-enter-pending");
+
+      const startX = from === "left" ? -120 : 120;
+      const startRotation = from === "left" ? -14 : 14;
+
+      if (window.gsap) {
+        gsap.fromTo(
+          phone,
+          {
+            autoAlpha: 0,
+            x: startX,
+            rotation: startRotation,
+            transformOrigin: "50% 50%",
+          },
+          {
+            autoAlpha: 1,
+            x: 0,
+            rotation: 0,
+            duration: 1.1,
+            ease: "power3.out",
+            delay: 0.05,
+          },
+        );
+        return;
+      }
+
       phone.classList.add("is-phone-enter-revealed");
-    };
-
-    if (!("IntersectionObserver" in window)) {
-      revealPhone();
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting || entry.intersectionRatio < 0.35) return;
-          observer.disconnect();
-          window.setTimeout(revealPhone, PHONE_ENTER_DELAY_MS);
-        });
-      },
-      { root: null, threshold: [0, 0.35, 0.5], rootMargin: "0px 0px -15% 0px" },
-    );
-
-    observer.observe(phone);
+    }, PHONE_ENTER_DELAY_MS);
   });
 }
 
@@ -99,7 +151,7 @@ function bootAnimations() {
 
   gsap.set("[data-section]", { opacity: 1 });
 
-  gsap.from(".site-header", {
+  gsap.from(".sl-header-inner", {
     y: -24,
     opacity: 0,
     duration: 0.8,
@@ -109,14 +161,14 @@ function bootAnimations() {
   gsap
     .timeline({ defaults: { ease: "power3.out" } })
     .from(".hero h1", { y: 34, opacity: 0, duration: 0.95 })
-    .from(".hero-copy > p", { y: 26, opacity: 0, duration: 0.8 }, "-=0.45")
-    .from("#sl-hero-app-store, #sl-hero-google-play", { y: 22, opacity: 0, duration: 0.75, stagger: 0.08 }, "-=0.35")
+    .from(".hero-copy > h2.sl-hero-subheading", { y: 26, opacity: 0, duration: 0.8 }, "-=0.45")
+    .from("#sl-hero-app-store", { y: 22, opacity: 0, duration: 0.75 }, "-=0.35")
     .from(".sl-hero-qr", { scale: 0.82, opacity: 0, duration: 0.65 }, "-=0.55")
     .from(".sl-hero-phone-inner", { y: 20, opacity: 0, duration: 0.85 }, "-=0.8");
 
   gsap.utils
     .toArray(
-      ".section-heading, #sl-features-intro, .sl-benefits-title, .sl-benefit-card, .sl-cta-home-copy, .sl-footer",
+      ".section-heading, #sl-features-intro, .sl-benefits-title, .sl-benefit-card, .sl-cta-home-inner, .sl-footer",
     )
     .forEach((el) => {
       gsap.from(el, {
@@ -141,6 +193,7 @@ function bootHeroVideo() {
 
   video.defaultMuted = true;
   video.muted = true;
+  video.playsInline = true;
 
   function attemptPlay() {
     const playAttempt = video.play();
@@ -207,22 +260,63 @@ const CLUB_SELECTOR_TEAMS = [
   { code: "TOT", name: "Spurs", logo: "logos/tot.png" },
 ];
 
-function renderClubSelectorPickHotspots() {
-  const hotspots = document.querySelector("#sl-club-selector-pick-hotspots");
+function renderClubSelectorTeams() {
+  const grid = document.querySelector("#teams-grid");
 
-  if (!hotspots) return;
+  if (!grid) return;
 
-  hotspots.innerHTML = CLUB_SELECTOR_TEAMS.map(
+  grid.innerHTML = CLUB_SELECTOR_TEAMS.map(
     (team) => `
       <button
         type="button"
-        class="sl-club-selector-pick-hotspot"
+        class="sl-app-team-card"
+        id="team-card-${team.code.toLowerCase()}"
         data-club="${team.code}"
-        aria-label="${team.name}"
         aria-pressed="false"
-      ></button>
+        aria-label="${team.name}"
+      >
+        <span class="sl-app-team-logo-wrap">
+          <img class="sl-app-team-logo" src="${team.logo}" alt="" width="50" height="50" loading="lazy" />
+        </span>
+        <span class="sl-app-team-name">${team.name}</span>
+        <span class="sl-app-team-selected-indicator" aria-hidden="true">
+          <img src="logos/Favorite-Icon-Filled.png" alt="" width="24" height="24" />
+        </span>
+      </button>
     `,
   ).join("");
+}
+
+function syncClubSelectorAppViewport() {
+  const screen = document.querySelector(".sl-club-selector-pick-screen");
+  const scaler = document.querySelector("#sl-club-selector-app-scaler");
+  const viewport = document.querySelector("#sl-club-selector-app-viewport");
+
+  if (!screen || !scaler || !viewport) return;
+
+  const availableWidth = screen.clientWidth;
+  const availableHeight = screen.clientHeight;
+  const scale = Math.min(
+    availableWidth / CLUB_SELECTOR_APP.width,
+    availableHeight / CLUB_SELECTOR_APP.height,
+    1,
+  );
+
+  viewport.style.setProperty("--sl-app-scale", String(scale));
+  scaler.style.height = `${CLUB_SELECTOR_APP.height * scale}px`;
+}
+
+function bootClubSelectorAppViewport() {
+  syncClubSelectorAppViewport();
+
+  const screen = document.querySelector(".sl-club-selector-pick-screen");
+  if (screen && window.ResizeObserver) {
+    const observer = new ResizeObserver(() => syncClubSelectorAppViewport());
+    observer.observe(screen);
+    return;
+  }
+
+  window.addEventListener("resize", syncClubSelectorAppViewport);
 }
 
 const CLUB_PRIMARY_COLORS = {
@@ -1025,6 +1119,12 @@ const clubSelectorState = {
   storyUnlocked: false,
   transitioning: false,
   arrowShown: false,
+  autoPickOfferShown: false,
+  autoPickRunning: false,
+  autoPickTimer: null,
+  autoPickStepTimer: null,
+  currentStoryStep: 0,
+  headlines: [],
 };
 
 const topStoriesCache = {};
@@ -1047,10 +1147,186 @@ function updateClubStoryHeadlines(code) {
   refreshVideosPhoneFeed(code);
   applyClubPrimaryColor(code);
 
-  CLUB_STORY_HEADLINE_BUILDERS.forEach((buildHeadline, index) => {
-    const headline = document.querySelector(`#sl-club-story-headline-${index}`);
-    if (headline) headline.textContent = buildHeadline(name);
+  clubSelectorState.headlines = CLUB_STORY_HEADLINE_BUILDERS.map((buildHeadline) => buildHeadline(name));
+
+  const headline = document.querySelector("#sl-club-story-headline");
+  if (headline) {
+    headline.textContent =
+      clubSelectorState.headlines[clubSelectorState.currentStoryStep] || clubSelectorState.headlines[0] || "";
+  }
+}
+
+function hideAutoPickOffer() {
+  const autoEl = document.querySelector("#sl-club-selector-pick-arrow-auto");
+  if (!autoEl) return;
+
+  autoEl.hidden = true;
+  autoEl.classList.remove("is-visible");
+}
+
+function clearRandomizerHighlights() {
+  document.querySelectorAll(".sl-app-team-card.is-randomizer-highlight").forEach((card) => {
+    card.classList.remove("is-randomizer-highlight");
   });
+}
+
+function cancelAutoPickSequence({ resetOffer = true } = {}) {
+  if (clubSelectorState.autoPickTimer) {
+    window.clearTimeout(clubSelectorState.autoPickTimer);
+    clubSelectorState.autoPickTimer = null;
+  }
+
+  if (clubSelectorState.autoPickStepTimer) {
+    window.clearTimeout(clubSelectorState.autoPickStepTimer);
+    clubSelectorState.autoPickStepTimer = null;
+  }
+
+  clubSelectorState.autoPickRunning = false;
+  clearRandomizerHighlights();
+
+  if (resetOffer) {
+    clubSelectorState.autoPickOfferShown = false;
+    hideAutoPickOffer();
+  }
+}
+
+function selectClubCard(card, onClubSelected) {
+  if (!card || clubSelectorState.transitioning || clubSelectorState.storyUnlocked) return;
+
+  cancelAutoPickSequence();
+
+  const grid = document.querySelector("#teams-grid");
+  const nextButton = document.querySelector("#sl-club-selector-next-button");
+
+  grid?.querySelectorAll(".sl-app-team-card").forEach((button) => {
+    const isSelected = button === card;
+    button.classList.toggle("selected", isSelected);
+    button.setAttribute("aria-pressed", isSelected ? "true" : "false");
+  });
+
+  if (nextButton) {
+    nextButton.disabled = false;
+    nextButton.removeAttribute("aria-disabled");
+  }
+
+  clubSelectorState.selectedCode = card.dataset.club;
+  updateClubStoryHeadlines(clubSelectorState.selectedCode);
+
+  if (onClubSelected) {
+    window.setTimeout(() => onClubSelected(), 450);
+  }
+}
+
+function buildRandomizerSequence(cards, count) {
+  const pool = [...cards];
+  const sequence = [];
+
+  while (sequence.length < count && pool.length) {
+    const index = Math.floor(Math.random() * pool.length);
+    sequence.push(pool.splice(index, 1)[0]);
+  }
+
+  return sequence;
+}
+
+function runClubRandomizer(onClubSelected) {
+  const grid = document.querySelector("#teams-grid");
+  const cards = [...(grid?.querySelectorAll(".sl-app-team-card") || [])];
+
+  if (!cards.length || clubSelectorState.selectedCode || clubSelectorState.storyUnlocked) {
+    clubSelectorState.autoPickRunning = false;
+    return;
+  }
+
+  clubSelectorState.autoPickRunning = true;
+
+  const finalizeRandomPick = () => {
+    clearRandomizerHighlights();
+    const finalCard = cards[Math.floor(Math.random() * cards.length)];
+    clubSelectorState.autoPickRunning = false;
+    selectClubCard(finalCard, onClubSelected);
+  };
+
+  if (prefersReducedMotion) {
+    finalizeRandomPick();
+    return;
+  }
+
+  const highlightCount = 5 + Math.floor(Math.random() * 2);
+  const sequence = buildRandomizerSequence(cards, highlightCount);
+  const stepMs = 380;
+  let stepIndex = 0;
+
+  const showNextHighlight = () => {
+    if (clubSelectorState.selectedCode || clubSelectorState.storyUnlocked) {
+      cancelAutoPickSequence();
+      return;
+    }
+
+    clearRandomizerHighlights();
+
+    if (stepIndex >= sequence.length) {
+      clubSelectorState.autoPickStepTimer = window.setTimeout(finalizeRandomPick, stepMs);
+      return;
+    }
+
+    sequence[stepIndex].classList.add("is-randomizer-highlight");
+    stepIndex += 1;
+    clubSelectorState.autoPickStepTimer = window.setTimeout(showNextHighlight, stepMs);
+  };
+
+  showNextHighlight();
+}
+
+function beginAutoPickSequence(onClubSelected) {
+  if (
+    clubSelectorState.autoPickOfferShown ||
+    clubSelectorState.autoPickRunning ||
+    clubSelectorState.selectedCode ||
+    clubSelectorState.storyUnlocked ||
+    clubSelectorState.transitioning
+  ) {
+    return;
+  }
+
+  clubSelectorState.autoPickOfferShown = true;
+
+  const autoEl = document.querySelector("#sl-club-selector-pick-arrow-auto");
+  if (autoEl) {
+    autoEl.removeAttribute("hidden");
+    autoEl.hidden = false;
+    autoEl.classList.add("is-visible");
+  }
+
+  clubSelectorState.autoPickTimer = window.setTimeout(() => {
+    clubSelectorState.autoPickTimer = null;
+    runClubRandomizer(onClubSelected);
+  }, 2000);
+}
+
+function bootClubSelectorAutoPickScroll(onClubSelected) {
+  const pickStage = document.querySelector(".sl-club-selector-pick-stage");
+  if (!pickStage) return;
+
+  pickStage.addEventListener(
+    "wheel",
+    (event) => {
+      if (event.deltaY <= 0) return;
+      if (
+        !clubSelectorState.arrowShown ||
+        clubSelectorState.autoPickOfferShown ||
+        clubSelectorState.autoPickRunning ||
+        clubSelectorState.selectedCode ||
+        clubSelectorState.storyUnlocked ||
+        clubSelectorState.transitioning
+      ) {
+        return;
+      }
+
+      beginAutoPickSequence(onClubSelected);
+    },
+    { passive: true },
+  );
 }
 
 function showClubSelectorPickArrow() {
@@ -1159,24 +1435,15 @@ function bootClubSelectorPickArrowHint() {
 }
 
 function bootClubSelectorTeamPicker(onClubSelected) {
-  const hotspots = document.querySelector("#sl-club-selector-pick-hotspots");
+  const grid = document.querySelector("#teams-grid");
 
-  if (!hotspots) return;
+  if (!grid) return;
 
-  hotspots.addEventListener("click", (event) => {
-    const hotspot = event.target.closest(".sl-club-selector-pick-hotspot");
+  grid.addEventListener("click", (event) => {
+    const card = event.target.closest(".sl-app-team-card");
+    if (!card) return;
 
-    if (!hotspot) return;
-
-    hotspots.querySelectorAll(".sl-club-selector-pick-hotspot").forEach((button) => {
-      const isSelected = button === hotspot;
-      button.classList.toggle("is-selected", isSelected);
-      button.setAttribute("aria-pressed", isSelected ? "true" : "false");
-    });
-
-    clubSelectorState.selectedCode = hotspot.dataset.club;
-    updateClubStoryHeadlines(clubSelectorState.selectedCode);
-    window.setTimeout(() => onClubSelected(), 450);
+    selectClubCard(card, onClubSelected);
   });
 }
 
@@ -1190,8 +1457,12 @@ function bootClubSelectorStory() {
 
   if (!wrap || !pinShell || !panel || !pickPhase || !storyPhase) return;
 
-  const textSteps = [...document.querySelectorAll(".sl-club-story-text-step")];
   const phoneSteps = [...document.querySelectorAll(".sl-club-story-phone-step")];
+  const stepperItems = [...document.querySelectorAll(".sl-club-story-stepper-item")];
+  const storyHeadline = document.querySelector("#sl-club-story-headline");
+  const changeClubButton = document.querySelector("#sl-club-story-change-club");
+
+  const STORY_STEP_COUNT = stepperItems.length || phoneSteps.length || 4;
 
   const PICK_HOLD = 0.5;
   const STEP_HOLD = 0.5;
@@ -1206,16 +1477,101 @@ function bootClubSelectorStory() {
   let isClampingScroll = false;
 
   function setStoryStep(index) {
-    textSteps.forEach((step, stepIndex) => {
-      const isActive = stepIndex === index;
+    const stepIndex = Math.max(0, Math.min(STORY_STEP_COUNT - 1, index));
+    clubSelectorState.currentStoryStep = stepIndex;
+
+    if (storyHeadline && clubSelectorState.headlines[stepIndex]) {
+      storyHeadline.textContent = clubSelectorState.headlines[stepIndex];
+    }
+
+    stepperItems.forEach((item, itemIndex) => {
+      const isActive = itemIndex === stepIndex;
+      item.classList.toggle("is-active", isActive);
+      const trigger = item.querySelector(".sl-club-story-stepper-trigger");
+      trigger?.setAttribute("aria-current", isActive ? "step" : "false");
+    });
+
+    phoneSteps.forEach((step, phoneIndex) => {
+      const isActive = phoneIndex === stepIndex;
       step.classList.toggle("is-active", isActive);
       step.setAttribute("aria-hidden", isActive ? "false" : "true");
     });
-    phoneSteps.forEach((step, stepIndex) => {
-      const isActive = stepIndex === index;
-      step.classList.toggle("is-active", isActive);
-      step.setAttribute("aria-hidden", isActive ? "false" : "true");
+  }
+
+  function scrollToStoryStep(stepIndex) {
+    if (!clubSelectorState.storyUnlocked) return;
+
+    const step = Math.max(0, Math.min(STORY_STEP_COUNT - 1, stepIndex));
+    const trigger = clubScrollTrigger || ScrollTrigger.getById("club-selector-scroll");
+
+    if (trigger && window.gsap && !prefersReducedMotion) {
+      const storyProgress = (step + 0.5) / STORY_STEP_COUNT;
+      const totalProgress = PICK_PROGRESS_CAP + storyProgress * (1 - PICK_PROGRESS_CAP);
+      trigger.scroll(trigger.start + (trigger.end - trigger.start) * totalProgress);
+      return;
+    }
+
+    setStoryStep(step);
+    if (window.gsap) {
+      phoneSteps.forEach((phone, phoneIndex) => {
+        gsap.set(phone, { opacity: phoneIndex === step ? 1 : 0 });
+      });
+    }
+  }
+
+  function bootClubStoryStepper() {
+    stepperItems.forEach((item) => {
+      const step = Number.parseInt(item.dataset.clubStoryStep, 10);
+      if (Number.isNaN(step)) return;
+
+      item.querySelector(".sl-club-story-stepper-trigger")?.addEventListener("click", () => {
+        scrollToStoryStep(step);
+      });
     });
+  }
+
+  function resetToPickPhase() {
+    cancelAutoPickSequence();
+    clubSelectorState.storyUnlocked = false;
+    clubSelectorState.selectedCode = null;
+    clubSelectorState.transitioning = false;
+    clubSelectorState.currentStoryStep = 0;
+
+    document.querySelectorAll(".sl-app-team-card").forEach((card) => {
+      card.classList.remove("selected");
+      card.setAttribute("aria-pressed", "false");
+    });
+
+    const nextButton = document.querySelector("#sl-club-selector-next-button");
+    if (nextButton) {
+      nextButton.disabled = true;
+      nextButton.setAttribute("aria-disabled", "true");
+    }
+
+    panel.classList.remove("is-story-active");
+    storyPhase.hidden = true;
+    storyPhase.setAttribute("aria-hidden", "true");
+    pickPhase.hidden = false;
+    pickPhase.classList.add("is-active");
+    pickPhase.setAttribute("aria-hidden", "false");
+    arrow?.classList.remove("is-visible");
+    clubSelectorState.arrowShown = false;
+
+    if (window.gsap) {
+      gsap.set(storyPhase, { opacity: 0, visibility: "hidden" });
+      gsap.set(pickPhase, { opacity: 1, visibility: "visible" });
+      gsap.set(phoneSteps, { opacity: 0 });
+    }
+
+    clubSelectorState.headlines = [];
+    if (storyHeadline) storyHeadline.textContent = "";
+    applyClubPrimaryColor(null);
+    setStoryStep(0);
+
+    const trigger = ScrollTrigger.getById("club-selector-scroll");
+    if (trigger) {
+      trigger.scroll(trigger.start);
+    }
   }
 
   function destroyClubScroll() {
@@ -1244,9 +1600,7 @@ function bootClubSelectorStory() {
 
     if (window.gsap) {
       gsap.set(storyPhase, { opacity: 1, visibility: "visible" });
-      gsap.set(textSteps, { opacity: 0 });
       gsap.set(phoneSteps, { opacity: 0 });
-      gsap.set(textSteps[0], { opacity: 1 });
       gsap.set(phoneSteps[0], { opacity: 1 });
     }
 
@@ -1254,7 +1608,7 @@ function bootClubSelectorStory() {
   }
 
   function clampToPickPhase(self) {
-    if (clubSelectorState.storyUnlocked || isClampingScroll) return;
+    if (clubSelectorState.storyUnlocked || isClampingScroll || clubSelectorState.autoPickRunning) return;
 
     const scrollAttemptThreshold = PICK_PROGRESS_CAP * 0.75;
     if (!clubSelectorState.selectedCode && self.progress > scrollAttemptThreshold) {
@@ -1265,6 +1619,10 @@ function bootClubSelectorStory() {
 
     if (!clubSelectorState.selectedCode) {
       showClubSelectorPickArrow();
+
+      if (clubSelectorState.arrowShown && !clubSelectorState.autoPickOfferShown) {
+        beginAutoPickSequence(transitionToStory);
+      }
     }
 
     isClampingScroll = true;
@@ -1281,7 +1639,6 @@ function bootClubSelectorStory() {
 
     gsap.set(storyPhase, { opacity: 0, visibility: "hidden" });
     gsap.set(pickPhase, { opacity: 1, visibility: "visible" });
-    gsap.set(textSteps, { opacity: 0 });
     gsap.set(phoneSteps, { opacity: 0 });
     panel.classList.remove("is-story-active");
     pickPhase.hidden = false;
@@ -1306,8 +1663,8 @@ function bootClubSelectorStory() {
 
           const storyProgress = Math.max(0, (self.progress - PICK_PROGRESS_CAP) / (1 - PICK_PROGRESS_CAP));
           const stepIndex = Math.min(
-            textSteps.length - 1,
-            Math.max(0, Math.floor(storyProgress * textSteps.length)),
+            STORY_STEP_COUNT - 1,
+            Math.max(0, Math.floor(storyProgress * STORY_STEP_COUNT)),
           );
           setStoryStep(stepIndex);
         },
@@ -1326,11 +1683,9 @@ function bootClubSelectorStory() {
 
     clubTimeline.to({}, { duration: STEP_HOLD });
 
-    for (let index = 1; index < textSteps.length; index += 1) {
+    for (let index = 1; index < phoneSteps.length; index += 1) {
       clubTimeline
-        .to(textSteps[index - 1], { opacity: 0, duration: STORY_TRANSITION })
-        .to(phoneSteps[index - 1], { opacity: 0, duration: STORY_TRANSITION }, "<")
-        .to(textSteps[index], { opacity: 1, duration: STORY_TRANSITION }, "<")
+        .to(phoneSteps[index - 1], { opacity: 0, duration: STORY_TRANSITION })
         .to(phoneSteps[index], { opacity: 1, duration: STORY_TRANSITION }, "<")
         .to({}, { duration: STEP_HOLD });
     }
@@ -1358,13 +1713,13 @@ function bootClubSelectorStory() {
         onComplete: finishStoryTransition,
       })
       .to([pickPhase, arrow], { opacity: 0, duration: 0.5, ease: "power1.inOut" })
-      .fromTo(
-        storyPhase,
-        { opacity: 0, visibility: "hidden" },
-        { opacity: 1, visibility: "visible", duration: 1, ease: "power2.out" },
-        "<",
-      );
+      .set(storyPhase, { visibility: "visible" })
+      .to(storyPhase, { opacity: 1, duration: 0.35, ease: "power2.out" }, "<0.1");
   }
+
+  changeClubButton?.addEventListener("click", resetToPickPhase);
+  bootClubStoryStepper();
+  bootClubSelectorAutoPickScroll(transitionToStory);
 
   bootClubSelectorPickArrowHint();
   bootClubSelectorTeamPicker(transitionToStory);
@@ -1372,6 +1727,7 @@ function bootClubSelectorStory() {
   clubSelectorPinController = {
     buildClubScroll,
     refreshOnResize() {
+      syncClubSelectorAppViewport();
       const wasUnlocked = clubSelectorState.storyUnlocked;
       buildClubScroll();
       if (wasUnlocked) {
@@ -1396,14 +1752,17 @@ function bootClubSelectorStoryPin() {
 bootCtaLogoGrid();
 bootHeroVideo();
 bootHeroPhoneStatusBar();
-renderClubSelectorPickHotspots();
+renderClubSelectorTeams();
+bootClubSelectorAppViewport();
 renderClubStoryPhoneSteps();
 bootClubStoryPhoneViewports();
 bootClubSelectorStory();
 bootAnimations();
+bootFeatureContentEntrances();
 bootFeaturePhoneEntrances();
 
 window.addEventListener("load", () => {
+  syncClubSelectorAppViewport();
   if (prefersReducedMotion || !window.ScrollTrigger) return;
   ScrollTrigger.refresh();
 });

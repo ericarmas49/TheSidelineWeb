@@ -13,19 +13,38 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" class="sl-preconnect-google" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin class="sl-preconnect-gstatic" />
     <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Oswald:wght@200;300;400;500;600;700&family=Space+Mono&display=block"
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="https://fonts.gstatic.com/s/oswald/v57/TK3iWkUHHAIjg752GT8Gl-1PKw.woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="https://fonts.gstatic.com/s/merriweather/v33/u-4e0qyriQwlOrhSvowK_l5UcA6zuSYEqOzpPe3HOZJ5eX1WtLaQwmYiSeqqJ-mXq1Gi.woff2"
+      crossorigin
+    />
+    <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,600;0,700;1,400&family=Oswald:wght@200;300;400;500;600;700&family=Roboto:wght@400;500&family=Space+Mono&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Oswald:wght@200;300;400;500;600;700&family=Space+Mono&display=block"
       class="sl-fonts"
     />
     <link rel="stylesheet" href="styles.css" class="sl-stylesheet" />
   </head>
   <body class="sl-body">
     <header id="sl-header" class="site-header sl-header" aria-label="Primary navigation">
+      <div class="sl-header-inner">
       <a id="sl-brand-link" class="brand sl-brand" href="#top" aria-label="SideLine home">
         <img class="sl-brand-logo" src="logos/logo_sideline.png" alt="" width="449" height="125" />
       </a>
       <nav id="sl-header-nav" class="header-actions sl-header-nav" aria-label="Download links">
-        <span class="download-label sl-download-label">Download the app</span>
         <a id="sl-header-app-store" class="store-badge sl-store-badge sl-store-badge-app-store" href="#download" aria-label="Download on the App Store">
           <svg class="sl-store-badge-icon sl-store-badge-icon-apple" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path fill="currentColor" d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.63 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
@@ -35,19 +54,8 @@
             <span class="sl-store-badge-name">App Store</span>
           </span>
         </a>
-        <a id="sl-header-google-play" class="store-badge sl-store-badge sl-store-badge-google-play" href="#download" aria-label="Get it on Google Play">
-          <svg class="sl-store-badge-icon sl-store-badge-icon-google-play" viewBox="0 0 512 512" aria-hidden="true" focusable="false">
-            <path fill="#EA4335" d="M325.3 234.3 104.5 31.82C95.38 24.97 82.05 31.77 82.05 43.52v424.1c0 11.75 13.32 18.34 22.42 11.57l220.8-202.5c8.6-7.9 8.6-22.1.03-30z" />
-            <path fill="#FBBC04" d="M504.6 256.1 325.3 277.7l-70.2 64.4 70.2 64.4 179.3 21.6c11.7 1.4 20.8-9.6 20.8-21.5v-129c0-11.9-9.1-21-20.8-21.5z" />
-            <path fill="#4285F4" d="M255.1 256.1l70.2-64.4L104.5 31.82C95.38 24.97 82.05 31.77 82.05 43.52v99.07l173.05 113.5z" />
-            <path fill="#34A853" d="M82.05 468.7c0 11.75 13.33 18.55 22.42 11.57l220.8-202.5-70.2-64.4L82.05 375.6v93.1z" />
-          </svg>
-          <span class="sl-store-badge-text">
-            <small class="sl-store-badge-label">GET IT ON</small>
-            <span class="sl-store-badge-name">Google Play</span>
-          </span>
-        </a>
       </nav>
+      </div>
     </header>
 
     <main id="top" class="sl-main">
@@ -63,15 +71,15 @@
           tabindex="-1"
           aria-hidden="true"
         >
-          <source src="screenshots/Sideline-Header_Opt2.mp4" type="video/mp4" />
-          <source src="screenshots/Sideline%20Header_Opt2.mov" type="video/quicktime" />
+          <source src="screenshots/Sideline-Header-B-Roll_Final.mp4" type="video/mp4" />
+          <source src="screenshots/Sideline%20Header%20B-Roll_Final.mov" type="video/quicktime" />
         </video>
         <div id="sl-hero-copy" class="hero-copy sl-hero-copy">
           <h1 class="sl-hero-heading">Your club. All in one place.</h1>
-          <p class="sl-hero-subheading">
+          <h2 class="sl-hero-subheading">
             Stop chasing your Premier League club across the internet and take control of
             your fandom.
-          </p>
+          </h2>
           <div class="hero-downloads sl-hero-downloads" id="download">
             <a id="sl-hero-app-store" class="store-badge large sl-store-badge sl-store-badge-large sl-store-badge-app-store" href="#" aria-label="Download on the App Store">
               <svg class="sl-store-badge-icon sl-store-badge-icon-apple" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -80,18 +88,6 @@
               <span class="sl-store-badge-text">
                 <small class="sl-store-badge-label">Download on the</small>
                 <span class="sl-store-badge-name">App Store</span>
-              </span>
-            </a>
-            <a id="sl-hero-google-play" class="store-badge large sl-store-badge sl-store-badge-large sl-store-badge-google-play" href="#" aria-label="Get it on Google Play">
-              <svg class="sl-store-badge-icon sl-store-badge-icon-google-play" viewBox="0 0 512 512" aria-hidden="true" focusable="false">
-                <path fill="#EA4335" d="M325.3 234.3 104.5 31.82C95.38 24.97 82.05 31.77 82.05 43.52v424.1c0 11.75 13.32 18.34 22.42 11.57l220.8-202.5c8.6-7.9 8.6-22.1.03-30z" />
-                <path fill="#FBBC04" d="M504.6 256.1 325.3 277.7l-70.2 64.4 70.2 64.4 179.3 21.6c11.7 1.4 20.8-9.6 20.8-21.5v-129c0-11.9-9.1-21-20.8-21.5z" />
-                <path fill="#4285F4" d="M255.1 256.1l70.2-64.4L104.5 31.82C95.38 24.97 82.05 31.77 82.05 43.52v99.07l173.05 113.5z" />
-                <path fill="#34A853" d="M82.05 468.7c0 11.75 13.33 18.55 22.42 11.57l220.8-202.5-70.2-64.4L82.05 375.6v93.1z" />
-              </svg>
-              <span class="sl-store-badge-text">
-                <small class="sl-store-badge-label">GET IT ON</small>
-                <span class="sl-store-badge-name">Google Play</span>
               </span>
             </a>
             <div id="sl-hero-qr" class="sl-hero-qr" aria-label="QR code placeholder">
@@ -120,7 +116,7 @@
         <div id="sl-hero-phone" class="hero-phone sl-hero-phone">
           <div class="sl-hero-phone-inner">
           <div class="phone-shell sl-phone-shell sl-hero-phone-shell">
-            <div class="phone-notch sl-phone-notch"></div>
+            <div class="phone-dynamic-island sl-phone-dynamic-island" aria-hidden="true"></div>
             <div class="phone-screen sl-phone-screen sl-hero-phone-screen">
               <div class="sl-phone-status-bar" aria-hidden="true">
                 <time class="sl-phone-status-time">9:41</time>
@@ -164,11 +160,10 @@
           <div id="sl-club-selector-phase-pick" class="sl-club-selector-phase-pick is-active">
             <div id="sl-club-selector-heading" class="section-heading sl-section-heading sl-club-selector-intro">
               <h2 class="sl-club-selector-title">Stay on top of everything that matters around your club</h2>
-              <p class="sl-club-selector-subtitle">Select your club</p>
             </div>
             <div class="sl-club-selector-pick-stage">
               <div class="sl-club-selector-pick-arrow" id="sl-club-selector-pick-arrow" aria-hidden="true">
-                <p class="sl-club-selector-pick-arrow-label">No really, click on your club</p>
+                <p class="sl-club-selector-pick-arrow-label">Choose your club</p>
                 <svg class="sl-club-selector-pick-arrow-svg" viewBox="0 0 180 110" focusable="false" aria-hidden="true">
                   <path
                     class="sl-club-selector-pick-arrow-path"
@@ -183,11 +178,14 @@
                     fill="currentColor"
                   />
                 </svg>
+                <p class="sl-club-selector-pick-arrow-auto" id="sl-club-selector-pick-arrow-auto" hidden>
+                  Or we will choose one for you
+                </p>
               </div>
               <div class="sl-club-selector-phone sl-club-selector-phone--pick">
                 <div class="sl-club-selector-phone-inner sl-hero-phone-inner">
                   <div class="phone-shell sl-phone-shell sl-hero-phone-shell">
-                    <div class="phone-notch sl-phone-notch"></div>
+                    <div class="phone-dynamic-island sl-phone-dynamic-island" aria-hidden="true"></div>
                     <div class="phone-screen sl-phone-screen sl-hero-phone-screen sl-club-selector-pick-screen">
                       <div class="sl-phone-status-bar" aria-hidden="true">
                         <time class="sl-phone-status-time">9:41</time>
@@ -208,22 +206,63 @@
                           </svg>
                         </div>
                       </div>
-                      <div class="sl-club-selector-pick-screen-content">
-                        <div class="sl-club-selector-pick-frame">
-                          <img
-                            class="sl-hero-phone-screen-img"
-                            src="screenshots/IMG_7869.PNG"
-                            alt="SideLine app onboarding: select your favorite team"
-                            width="1287"
-                            height="2322"
-                            decoding="async"
-                          />
-                          <div
-                            class="sl-club-selector-pick-hotspots"
-                            id="sl-club-selector-pick-hotspots"
-                            role="group"
-                            aria-label="Select your favorite team"
-                          ></div>
+                      <div class="sl-app-scaler" id="sl-club-selector-app-scaler">
+                        <div
+                          class="sl-app-viewport"
+                          id="sl-club-selector-app-viewport"
+                          aria-label="SideLine app onboarding: select your favorite team"
+                        >
+                          <div class="sl-app-onboarding">
+                            <header class="sl-app-step-header" id="step-header">
+                              <h1 class="sl-app-step-title" id="step-title">
+                                <span class="sl-app-step-label step-label">Step 1:</span>
+                                <span> Select your favorite team</span>
+                              </h1>
+                              <p class="sl-app-step-subtitle" id="step-subtitle">
+                                <span class="sl-app-step-label">Why we're asking:</span>
+                                <span> To build your experience around your team.</span>
+                              </p>
+                            </header>
+                            <div class="sl-app-scroll">
+                              <section class="sl-app-league-section" data-testid="league-section">
+                                <div class="sl-app-league-header" id="league-header">
+                                  <img
+                                    class="sl-app-league-logo"
+                                    src="logos/Premier-League-1x1-Logo.png"
+                                    alt=""
+                                    width="35"
+                                    height="35"
+                                  />
+                                  <h2 class="sl-app-league-title" id="league-title">PREMIER LEAGUE</h2>
+                                </div>
+                                <div
+                                  class="sl-app-teams-grid"
+                                  id="teams-grid"
+                                  role="group"
+                                  aria-label="Premier League teams"
+                                ></div>
+                              </section>
+                            </div>
+                            <footer class="sl-app-onboarding-footer">
+                              <div class="sl-app-onboarding-actions" data-testid="onboarding-button-container">
+                                <button
+                                  type="button"
+                                  class="sl-app-next-button"
+                                  id="sl-club-selector-next-button"
+                                  data-testid="onboarding-next-button"
+                                  disabled
+                                  aria-disabled="true"
+                                >
+                                  <span class="label">Next</span>
+                                </button>
+                              </div>
+                              <div class="sl-app-onboarding-dots" data-testid="onboarding-dots-container" aria-hidden="true">
+                                <span class="sl-app-dot active"></span>
+                                <span class="sl-app-dot"></span>
+                                <span class="sl-app-dot"></span>
+                              </div>
+                            </footer>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -236,47 +275,37 @@
           <div id="sl-club-selector-phase-story" class="sl-club-selector-phase-story" aria-hidden="true" hidden>
             <div id="sl-club-selector-story-stage" class="sl-club-selector-story-stage">
               <div id="sl-club-selector-text-wrap" class="sl-club-selector-text-wrap">
-                <div class="sl-club-story-text-step" data-club-story-step="0" aria-hidden="false">
-                  <h2 class="sl-club-story-headline" id="sl-club-story-headline-0"></h2>
+                <div class="sl-club-story-text-panel">
+                  <button type="button" class="sl-club-story-change-club" id="sl-club-story-change-club">
+                    &lt; Change your club
+                  </button>
+                  <h2 class="sl-club-story-headline" id="sl-club-story-headline"></h2>
                   <nav class="sl-club-story-stepper" aria-label="Club feed sections">
-                    <ol class="sl-club-story-stepper-list">
-                      <li class="sl-club-story-stepper-item is-active"><span class="sl-club-story-stepper-dot"></span><span class="sl-club-story-stepper-label">Top Stories</span></li>
-                      <li class="sl-club-story-stepper-item"><span class="sl-club-story-stepper-dot"></span><span class="sl-club-story-stepper-label">Recent Podcasts</span></li>
-                      <li class="sl-club-story-stepper-item"><span class="sl-club-story-stepper-dot"></span><span class="sl-club-story-stepper-label">Latest Videos</span></li>
-                      <li class="sl-club-story-stepper-item"><span class="sl-club-story-stepper-dot"></span><span class="sl-club-story-stepper-label">Trending Social Posts</span></li>
-                    </ol>
-                  </nav>
-                </div>
-                <div class="sl-club-story-text-step" data-club-story-step="1" aria-hidden="true">
-                  <h2 class="sl-club-story-headline" id="sl-club-story-headline-1"></h2>
-                  <nav class="sl-club-story-stepper" aria-label="Club feed sections">
-                    <ol class="sl-club-story-stepper-list">
-                      <li class="sl-club-story-stepper-item"><span class="sl-club-story-stepper-dot"></span><span class="sl-club-story-stepper-label">Top Stories</span></li>
-                      <li class="sl-club-story-stepper-item is-active"><span class="sl-club-story-stepper-dot"></span><span class="sl-club-story-stepper-label">Recent Podcasts</span></li>
-                      <li class="sl-club-story-stepper-item"><span class="sl-club-story-stepper-dot"></span><span class="sl-club-story-stepper-label">Latest Videos</span></li>
-                      <li class="sl-club-story-stepper-item"><span class="sl-club-story-stepper-dot"></span><span class="sl-club-story-stepper-label">Trending Social Posts</span></li>
-                    </ol>
-                  </nav>
-                </div>
-                <div class="sl-club-story-text-step" data-club-story-step="2" aria-hidden="true">
-                  <h2 class="sl-club-story-headline" id="sl-club-story-headline-2"></h2>
-                  <nav class="sl-club-story-stepper" aria-label="Club feed sections">
-                    <ol class="sl-club-story-stepper-list">
-                      <li class="sl-club-story-stepper-item"><span class="sl-club-story-stepper-dot"></span><span class="sl-club-story-stepper-label">Top Stories</span></li>
-                      <li class="sl-club-story-stepper-item"><span class="sl-club-story-stepper-dot"></span><span class="sl-club-story-stepper-label">Recent Podcasts</span></li>
-                      <li class="sl-club-story-stepper-item is-active"><span class="sl-club-story-stepper-dot"></span><span class="sl-club-story-stepper-label">Latest Videos</span></li>
-                      <li class="sl-club-story-stepper-item"><span class="sl-club-story-stepper-dot"></span><span class="sl-club-story-stepper-label">Trending Social Posts</span></li>
-                    </ol>
-                  </nav>
-                </div>
-                <div class="sl-club-story-text-step" data-club-story-step="3" aria-hidden="true">
-                  <h2 class="sl-club-story-headline" id="sl-club-story-headline-3"></h2>
-                  <nav class="sl-club-story-stepper" aria-label="Club feed sections">
-                    <ol class="sl-club-story-stepper-list">
-                      <li class="sl-club-story-stepper-item"><span class="sl-club-story-stepper-dot"></span><span class="sl-club-story-stepper-label">Top Stories</span></li>
-                      <li class="sl-club-story-stepper-item"><span class="sl-club-story-stepper-dot"></span><span class="sl-club-story-stepper-label">Recent Podcasts</span></li>
-                      <li class="sl-club-story-stepper-item"><span class="sl-club-story-stepper-dot"></span><span class="sl-club-story-stepper-label">Latest Videos</span></li>
-                      <li class="sl-club-story-stepper-item is-active"><span class="sl-club-story-stepper-dot"></span><span class="sl-club-story-stepper-label">Trending Social Posts</span></li>
+                    <ol class="sl-club-story-stepper-list" id="sl-club-story-stepper-list">
+                      <li class="sl-club-story-stepper-item is-active" data-club-story-step="0">
+                        <button type="button" class="sl-club-story-stepper-trigger" aria-current="step">
+                          <span class="sl-club-story-stepper-dot"></span>
+                          <span class="sl-club-story-stepper-label">Top Stories</span>
+                        </button>
+                      </li>
+                      <li class="sl-club-story-stepper-item" data-club-story-step="1">
+                        <button type="button" class="sl-club-story-stepper-trigger">
+                          <span class="sl-club-story-stepper-dot"></span>
+                          <span class="sl-club-story-stepper-label">Recent Podcasts</span>
+                        </button>
+                      </li>
+                      <li class="sl-club-story-stepper-item" data-club-story-step="2">
+                        <button type="button" class="sl-club-story-stepper-trigger">
+                          <span class="sl-club-story-stepper-dot"></span>
+                          <span class="sl-club-story-stepper-label">Latest Videos</span>
+                        </button>
+                      </li>
+                      <li class="sl-club-story-stepper-item" data-club-story-step="3">
+                        <button type="button" class="sl-club-story-stepper-trigger">
+                          <span class="sl-club-story-stepper-dot"></span>
+                          <span class="sl-club-story-stepper-label">Trending Social Posts</span>
+                        </button>
+                      </li>
                     </ol>
                   </nav>
                 </div>
@@ -284,25 +313,25 @@
               <div id="sl-club-selector-story-phone-wrap" class="sl-club-selector-story-phone-wrap">
                 <div class="sl-club-story-phone-step" data-club-story-step="0" aria-hidden="false">
                   <div class="phone-shell sl-phone-shell sl-club-story-phone-shell">
-                    <div class="phone-notch sl-phone-notch"></div>
+                    <div class="phone-dynamic-island sl-phone-dynamic-island" aria-hidden="true"></div>
                     <div class="phone-screen sl-phone-screen sl-club-story-phone-screen" data-club-story-feed="0"></div>
                   </div>
                 </div>
                 <div class="sl-club-story-phone-step" data-club-story-step="1" aria-hidden="true">
                   <div class="phone-shell sl-phone-shell sl-club-story-phone-shell">
-                    <div class="phone-notch sl-phone-notch"></div>
+                    <div class="phone-dynamic-island sl-phone-dynamic-island" aria-hidden="true"></div>
                     <div class="phone-screen sl-phone-screen sl-club-story-phone-screen" data-club-story-feed="1"></div>
                   </div>
                 </div>
                 <div class="sl-club-story-phone-step" data-club-story-step="2" aria-hidden="true">
                   <div class="phone-shell sl-phone-shell sl-club-story-phone-shell">
-                    <div class="phone-notch sl-phone-notch"></div>
+                    <div class="phone-dynamic-island sl-phone-dynamic-island" aria-hidden="true"></div>
                     <div class="phone-screen sl-phone-screen sl-club-story-phone-screen" data-club-story-feed="2"></div>
                   </div>
                 </div>
                 <div class="sl-club-story-phone-step" data-club-story-step="3" aria-hidden="true">
                   <div class="phone-shell sl-phone-shell sl-club-story-phone-shell">
-                    <div class="phone-notch sl-phone-notch"></div>
+                    <div class="phone-dynamic-island sl-phone-dynamic-island" aria-hidden="true"></div>
                     <div class="phone-screen sl-phone-screen sl-club-story-phone-screen" data-club-story-feed="3"></div>
                   </div>
                 </div>
@@ -323,7 +352,7 @@
             <div id="sl-features-phone-wrap" class="sl-features-phone-wrap">
               <div class="sl-features-step sl-features-step-credibility" data-feature-step="credibility">
                 <div class="phone-shell feature-phone sl-phone-shell sl-feature-phone">
-                  <div class="phone-notch sl-phone-notch"></div>
+                  <div class="phone-dynamic-island sl-phone-dynamic-island" aria-hidden="true"></div>
                   <div class="phone-screen sl-phone-screen sl-feature-phone-screen sl-hero-phone-screen">
                     <div class="sl-phone-status-bar" aria-hidden="true">
                       <time class="sl-phone-status-time">9:41</time>
@@ -376,7 +405,7 @@
           </div>
           <div class="sl-feature-panel-visual">
             <div class="phone-shell feature-phone sl-phone-shell sl-feature-phone">
-              <div class="phone-notch sl-phone-notch"></div>
+              <div class="phone-dynamic-island sl-phone-dynamic-island" aria-hidden="true"></div>
               <div class="phone-screen sl-phone-screen sl-feature-phone-screen sl-hero-phone-screen">
                 <div class="sl-phone-status-bar" aria-hidden="true">
                   <time class="sl-phone-status-time">9:41</time>
@@ -415,7 +444,7 @@
         <div class="feature-section split section-dark sl-feature-panel">
           <div class="sl-feature-panel-visual">
             <div class="phone-shell feature-phone sl-phone-shell sl-feature-phone">
-              <div class="phone-notch sl-phone-notch"></div>
+              <div class="phone-dynamic-island sl-phone-dynamic-island" aria-hidden="true"></div>
               <div class="phone-screen sl-phone-screen sl-feature-phone-screen sl-hero-phone-screen">
                 <div class="sl-phone-status-bar" aria-hidden="true">
                   <time class="sl-phone-status-time">9:41</time>
@@ -455,6 +484,7 @@
         </div>
       </section>
 
+      <!--
       <section id="sl-benefits" class="benefits section-light sl-section sl-benefits" data-section>
         <div class="sl-benefits-inner">
           <h2 class="sl-benefits-title">Following your club shouldn't feel like work</h2>
@@ -518,63 +548,45 @@
           </div>
         </div>
       </section>
+      -->
 
-      <section id="sl-cta-home" class="cta-home sl-section sl-cta-home" data-section aria-label="Download SideLine">
-        <div class="sl-cta-home-grid">
-          <div class="sl-cta-home-copy">
-            <a class="brand sl-brand sl-cta-brand" href="#top" aria-label="SideLine home">
-              <img class="sl-brand-logo" src="logos/logo_sideline.png" alt="" width="449" height="125" />
+      <section id="sl-cta-home" class="sl-section sl-cta-home" data-section aria-label="Download SideLine">
+        <div class="sl-cta-home-bg" aria-hidden="true">
+          <div class="sl-cta-home-bg-image"></div>
+          <div class="sl-cta-home-bg-overlay"></div>
+        </div>
+        <div class="sl-cta-home-inner">
+          <h2 class="sl-cta-home-title">Following your club shouldn't feel like work</h2>
+          <div class="sl-cta-home-downloads">
+            <a class="store-badge sl-store-badge sl-store-badge-app-store" href="#download" aria-label="Download on the App Store">
+              <svg class="sl-store-badge-icon sl-store-badge-icon-apple" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.63 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+              </svg>
+              <span class="sl-store-badge-text">
+                <small class="sl-store-badge-label">Download on the</small>
+                <span class="sl-store-badge-name">App Store</span>
+              </span>
             </a>
-            <h2 class="sl-cta-home-title">The definitive home for following your club</h2>
-            <div class="sl-cta-home-downloads">
-              <a class="store-badge sl-store-badge sl-store-badge-app-store" href="#download" aria-label="Download on the App Store">
-                <svg class="sl-store-badge-icon sl-store-badge-icon-apple" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path fill="currentColor" d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.63 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
-                </svg>
-                <span class="sl-store-badge-text">
-                  <small class="sl-store-badge-label">Download on the</small>
-                  <span class="sl-store-badge-name">App Store</span>
-                </span>
-              </a>
-              <a class="store-badge sl-store-badge sl-store-badge-google-play" href="#download" aria-label="Get it on Google Play">
-                <svg class="sl-store-badge-icon sl-store-badge-icon-google-play" viewBox="0 0 512 512" aria-hidden="true" focusable="false">
-                  <path fill="#EA4335" d="M325.3 234.3 104.5 31.82C95.38 24.97 82.05 31.77 82.05 43.52v424.1c0 11.75 13.32 18.34 22.42 11.57l220.8-202.5c8.6-7.9 8.6-22.1.03-30z" />
-                  <path fill="#FBBC04" d="M504.6 256.1 325.3 277.7l-70.2 64.4 70.2 64.4 179.3 21.6c11.7 1.4 20.8-9.6 20.8-21.5v-129c0-11.9-9.1-21-20.8-21.5z" />
-                  <path fill="#4285F4" d="M255.1 256.1l70.2-64.4L104.5 31.82C95.38 24.97 82.05 31.77 82.05 43.52v99.07l173.05 113.5z" />
-                  <path fill="#34A853" d="M82.05 468.7c0 11.75 13.33 18.55 22.42 11.57l220.8-202.5-70.2-64.4L82.05 375.6v93.1z" />
-                </svg>
-                <span class="sl-store-badge-text">
-                  <small class="sl-store-badge-label">GET IT ON</small>
-                  <span class="sl-store-badge-name">Google Play</span>
-                </span>
-              </a>
-              <div class="sl-cta-qr-placeholder" aria-hidden="true">
-                <svg class="sl-cta-qr-svg" viewBox="-14 -6 92 92" xmlns="http://www.w3.org/2000/svg" focusable="false">
-                  <line class="sl-cta-qr-crosshair" x1="-12" y1="14" x2="0" y2="14" />
-                  <line class="sl-cta-qr-crosshair" x1="68" y1="14" x2="80" y2="14" />
-                  <line class="sl-cta-qr-crosshair" x1="14" y1="68" x2="14" y2="80" />
-                  <rect class="sl-cta-qr-finder" x="2" y="2" width="20" height="20" />
-                  <rect class="sl-cta-qr-finder-core" x="8" y="8" width="8" height="8" />
-                  <rect class="sl-cta-qr-finder" x="46" y="2" width="20" height="20" />
-                  <rect class="sl-cta-qr-finder-core" x="52" y="8" width="8" height="8" />
-                  <rect class="sl-cta-qr-finder" x="2" y="46" width="20" height="20" />
-                  <rect class="sl-cta-qr-finder-core" x="8" y="52" width="8" height="8" />
-                  <rect class="sl-cta-qr-block" x="28" y="28" width="5" height="18" />
-                  <rect class="sl-cta-qr-block" x="28" y="28" width="16" height="5" />
-                  <rect class="sl-cta-qr-block" x="39" y="36" width="11" height="5" />
-                  <rect class="sl-cta-qr-block" x="45" y="36" width="5" height="12" />
-                  <rect class="sl-cta-qr-block" x="33" y="45" width="14" height="5" />
-                  <rect class="sl-cta-qr-block" x="33" y="45" width="5" height="9" />
-                  <rect class="sl-cta-qr-block" x="50" y="50" width="5" height="10" />
-                  <rect class="sl-cta-qr-block" x="42" y="55" width="13" height="5" />
-                </svg>
-              </div>
-            </div>
-          </div>
-          <div id="sl-cta-home-visual" class="sl-cta-home-visual" aria-label="Premier League club crests on a stadium pitch">
-            <div class="sl-cta-home-visual-bg" aria-hidden="true"></div>
-            <div class="sl-cta-logo-marquee" aria-hidden="true">
-              <div class="sl-cta-logo-grid" id="sl-cta-logo-grid"></div>
+            <div class="sl-cta-qr" aria-label="QR code placeholder">
+              <svg class="sl-cta-qr-svg" viewBox="-14 -6 92 92" xmlns="http://www.w3.org/2000/svg" focusable="false" aria-hidden="true">
+                <line class="sl-cta-qr-crosshair" x1="-12" y1="14" x2="0" y2="14" />
+                <line class="sl-cta-qr-crosshair" x1="68" y1="14" x2="80" y2="14" />
+                <line class="sl-cta-qr-crosshair" x1="14" y1="68" x2="14" y2="80" />
+                <rect class="sl-cta-qr-finder" x="2" y="2" width="20" height="20" />
+                <rect class="sl-cta-qr-finder-core" x="8" y="8" width="8" height="8" />
+                <rect class="sl-cta-qr-finder" x="46" y="2" width="20" height="20" />
+                <rect class="sl-cta-qr-finder-core" x="52" y="8" width="8" height="8" />
+                <rect class="sl-cta-qr-finder" x="2" y="46" width="20" height="20" />
+                <rect class="sl-cta-qr-finder-core" x="8" y="52" width="8" height="8" />
+                <rect class="sl-cta-qr-block" x="28" y="28" width="5" height="18" />
+                <rect class="sl-cta-qr-block" x="28" y="28" width="16" height="5" />
+                <rect class="sl-cta-qr-block" x="39" y="36" width="11" height="5" />
+                <rect class="sl-cta-qr-block" x="45" y="36" width="5" height="12" />
+                <rect class="sl-cta-qr-block" x="33" y="45" width="14" height="5" />
+                <rect class="sl-cta-qr-block" x="33" y="45" width="5" height="9" />
+                <rect class="sl-cta-qr-block" x="50" y="50" width="5" height="10" />
+                <rect class="sl-cta-qr-block" x="42" y="55" width="13" height="5" />
+              </svg>
             </div>
           </div>
         </div>
@@ -588,7 +600,7 @@
       <nav class="sl-footer-nav" aria-label="Footer">
         <a class="sl-footer-link" id="sl-footer-contact" href="#">Contact Us</a>
         <a class="sl-footer-link" id="sl-footer-privacy" href="#">Privacy Policy</a>
-        <a class="sl-footer-link" id="sl-footer-terms" href="#">Terms of Use</a>
+        <a class="sl-footer-link" id="sl-footer-terms" href="/terms-of-service">Terms of Use</a>
       </nav>
       <p class="sl-footer-social-label">Follow Us</p>
       <div class="sl-footer-social" aria-label="Social media">

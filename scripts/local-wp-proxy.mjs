@@ -24,6 +24,9 @@ const MIME = {
   ".webp": "image/webp",
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
+  ".mp4": "video/mp4",
+  ".mov": "video/quicktime",
+  ".webm": "video/webm",
 };
 
 function sendJson(res, status, payload) {
@@ -54,16 +57,54 @@ async function proxyWp(req, res, wpPath, search) {
 }
 
 function serveStatic(req, res, filePath) {
-  fs.readFile(filePath, (err, data) => {
-    if (err) {
+  fs.stat(filePath, (statErr, stats) => {
+    if (statErr || !stats.isFile()) {
       res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
       res.end("Not found");
       return;
     }
 
     const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, { "Content-Type": MIME[ext] || "application/octet-stream" });
-    res.end(data);
+    const contentType = MIME[ext] || "application/octet-stream";
+    const total = stats.size;
+    const range = req.headers.range;
+
+    if (range) {
+      const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+      if (!match) {
+        res.writeHead(416, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end("Range Not Satisfiable");
+        return;
+      }
+
+      const start = match[1] ? Number(match[1]) : 0;
+      const end = match[2] ? Number(match[2]) : total - 1;
+
+      if (Number.isNaN(start) || Number.isNaN(end) || start >= total || end >= total || start > end) {
+        res.writeHead(416, {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Content-Range": `bytes */${total}`,
+        });
+        res.end("Range Not Satisfiable");
+        return;
+      }
+
+      res.writeHead(206, {
+        "Content-Type": contentType,
+        "Content-Length": end - start + 1,
+        "Content-Range": `bytes ${start}-${end}/${total}`,
+        "Accept-Ranges": "bytes",
+      });
+      fs.createReadStream(filePath, { start, end }).pipe(res);
+      return;
+    }
+
+    res.writeHead(200, {
+      "Content-Type": contentType,
+      "Content-Length": total,
+      "Accept-Ranges": "bytes",
+    });
+    fs.createReadStream(filePath).pipe(res);
   });
 }
 
@@ -87,9 +128,16 @@ const server = http.createServer((req, res) => {
   }
 
   let pathname = decodeURIComponent(url.pathname);
-  if (pathname === "/") pathname = "/index.html";
+  if (pathname.endsWith("/")) pathname = `${pathname}index.html`;
+  else if (pathname === "/") pathname = "/index.html";
 
-  const filePath = path.join(ROOT, pathname);
+  let filePath = path.join(ROOT, pathname);
+  if (!path.extname(pathname)) {
+    const indexPath = path.join(filePath, "index.html");
+    if (fs.existsSync(indexPath) && fs.statSync(indexPath).isFile()) {
+      filePath = indexPath;
+    }
+  }
   if (!filePath.startsWith(ROOT)) {
     res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("Forbidden");
