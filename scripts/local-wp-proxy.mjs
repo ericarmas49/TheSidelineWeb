@@ -127,17 +127,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  let pathname = decodeURIComponent(url.pathname);
-  if (pathname.endsWith("/")) pathname = `${pathname}index.html`;
-  else if (pathname === "/") pathname = "/index.html";
+  const pathname = decodeURIComponent(url.pathname).replace(/\/+$/, "") || "/";
+  let filePath = path.join(ROOT, pathname === "/" ? "index.html" : pathname.replace(/^\//, ""));
 
-  let filePath = path.join(ROOT, pathname);
-  if (!path.extname(pathname)) {
+  if (!path.extname(filePath)) {
     const indexPath = path.join(filePath, "index.html");
     if (fs.existsSync(indexPath) && fs.statSync(indexPath).isFile()) {
       filePath = indexPath;
     }
   }
+
   if (!filePath.startsWith(ROOT)) {
     res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("Forbidden");

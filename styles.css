@@ -3154,7 +3154,14 @@ h2.sl-cta-home-title {
 }
 
 .sl-legal-main {
-  padding: clamp(48px, 8vw, 96px) max(24px, calc((100vw - var(--max)) / 2)) clamp(72px, 10vw, 120px);
+  padding: clamp(48px, 8vw, 96px) 0 clamp(72px, 10vw, 120px);
+}
+
+.sl-legal-container {
+  width: 100%;
+  max-width: 1400px;
+  margin-inline: auto;
+  padding: 0 50px;
 }
 
 .sl-legal-content {
