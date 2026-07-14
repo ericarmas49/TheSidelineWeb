@@ -287,36 +287,90 @@ function renderClubSelectorTeams() {
   ).join("");
 }
 
-function syncClubSelectorAppViewport() {
-  const screen = document.querySelector(".sl-club-selector-pick-screen");
-  const scaler = document.querySelector("#sl-club-selector-app-scaler");
-  const viewport = document.querySelector("#sl-club-selector-app-viewport");
+function computeClubAppScale(availableWidth, availableHeight) {
+  if (availableWidth <= 0 || availableHeight <= 0) return 1;
 
-  if (!screen || !scaler || !viewport) return;
-
-  const availableWidth = screen.clientWidth;
-  const availableHeight = screen.clientHeight;
-  const scale = Math.min(
+  return Math.min(
     availableWidth / CLUB_SELECTOR_APP.width,
     availableHeight / CLUB_SELECTOR_APP.height,
-    1,
   );
+}
 
+function getScalerAvailableSize(scaler) {
+  if (!scaler) return { width: 0, height: 0 };
+
+  const width = scaler.clientWidth;
+  const height = scaler.clientHeight;
+  if (width > 0 && height > 0) {
+    return { width, height };
+  }
+
+  const parent = scaler.parentElement;
+  if (!parent) return { width: 0, height: 0 };
+
+  const statusBar = parent.querySelector(":scope > .sl-phone-status-bar");
+  const statusBarHeight = statusBar?.getBoundingClientRect().height ?? 0;
+
+  return {
+    width: parent.clientWidth,
+    height: Math.max(0, parent.clientHeight - statusBarHeight),
+  };
+}
+
+function applyClubAppScale(scaler, viewport, availableWidth, availableHeight) {
+  if (!scaler || !viewport) return;
+
+  const scale = computeClubAppScale(availableWidth, availableHeight);
   viewport.style.setProperty("--sl-app-scale", String(scale));
   scaler.style.height = `${CLUB_SELECTOR_APP.height * scale}px`;
 }
 
-function bootClubSelectorAppViewport() {
+function syncClubSelectorAppViewport() {
+  const scaler = document.querySelector("#sl-club-selector-app-scaler");
+  const viewport = document.querySelector("#sl-club-selector-app-viewport");
+
+  if (!scaler || !viewport) return;
+
+  const { width, height } = getScalerAvailableSize(scaler);
+  applyClubAppScale(scaler, viewport, width, height);
+}
+
+function syncClubStoryPhoneScaleForScreen(screen) {
+  const scaler = screen.querySelector(".sl-club-story-app-scaler");
+  const viewport = screen.querySelector(".sl-app-home-viewport");
+
+  if (!scaler || !viewport) return;
+
+  const { width, height } = getScalerAvailableSize(scaler);
+  applyClubAppScale(scaler, viewport, width, height);
+}
+
+function syncClubSelectorPhoneScales() {
   syncClubSelectorAppViewport();
 
+  const storyScreen = document.querySelector(".sl-club-selector-story-phone-screen[data-club-story-feed]");
+  if (storyScreen) {
+    syncClubStoryPhoneScaleForScreen(storyScreen);
+  }
+}
+
+function bootClubSelectorAppViewport() {
+  const sync = () => syncClubSelectorAppViewport();
+  sync();
+
+  const sharedPhone = document.querySelector("#sl-club-selector-shared-phone");
   const screen = document.querySelector(".sl-club-selector-pick-screen");
-  if (screen && window.ResizeObserver) {
-    const observer = new ResizeObserver(() => syncClubSelectorAppViewport());
-    observer.observe(screen);
+  const scaler = document.querySelector("#sl-club-selector-app-scaler");
+
+  if (window.ResizeObserver) {
+    const observer = new ResizeObserver(sync);
+    if (sharedPhone) observer.observe(sharedPhone);
+    if (screen) observer.observe(screen);
+    if (scaler) observer.observe(scaler);
     return;
   }
 
-  window.addEventListener("resize", syncClubSelectorAppViewport);
+  window.addEventListener("resize", sync);
 }
 
 const CLUB_PRIMARY_COLORS = {
@@ -341,13 +395,6 @@ const CLUB_PRIMARY_COLORS = {
   SUN: "#EB172C",
   TOT: "#132257",
 };
-
-const CLUB_STORY_FEED_IMAGES = [
-  null,
-  null,
-  null,
-  "screenshots/club-selector-social-posts.png",
-];
 
 const CLUB_STORY_FEED_MODES = ["trending", "trending", "trending", "for-me"];
 
@@ -654,97 +701,17 @@ const VIDEO_PLAY_ICON = `<svg class="sl-app-video-play-icon" viewBox="0 0 24 24"
 
 const VIDEO_CAM_ICON = `<svg class="sl-app-video-cam-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="2" y="6" width="14" height="12" rx="2" stroke="#FFFFFF" stroke-width="2" fill="none"/><path stroke="#FFFFFF" stroke-width="2" fill="none" d="M16 10l6-3v10l-6-3z"/></svg>`;
 
-const VIDEOS_SAMPLE_FEED = {
-  videos: [
-    {
-      id: "88101",
-      title: "Arsenal transfer targets ranked — who should Arteta sign next?",
-      channelName: "AFTV",
-      date: "30 Jun 2026",
-      thumbnailUrl: "https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
-    },
-    {
-      id: "88102",
-      title: "Every Arsenal pre-season moment you might have missed",
-      channelName: "AFTV",
-      date: "29 Jun 2026",
-      thumbnailUrl: "https://img.youtube.com/vi/ScMzIvxBSi4/hqdefault.jpg",
-    },
-    {
-      id: "88103",
-      title: "Is this Arsenal's best starting XI for the new season?",
-      channelName: "AFTV",
-      date: "28 Jun 2026",
-      thumbnailUrl: "https://img.youtube.com/vi/jNQXAC9IVRw/hqdefault.jpg",
-    },
-    {
-      id: "77201",
-      title: "Liverpool's midfield rebuild — who fits Slot's system?",
-      channelName: "THE ANFIELD WRAP",
-      date: "30 Jun 2026",
-      thumbnailUrl: "https://img.youtube.com/vi/9bZkp7q19f0/hqdefault.jpg",
-    },
-    {
-      id: "77202",
-      title: "Should Liverpool pay the asking price for Bradley Barcola?",
-      channelName: "THE ANFIELD WRAP",
-      date: "29 Jun 2026",
-      thumbnailUrl: "https://img.youtube.com/vi/kJQP7kiw5Fk/hqdefault.jpg",
-    },
-    {
-      id: "77203",
-      title: "Premier League financial rules explained in five minutes",
-      channelName: "SKY SPORTS PL",
-      date: "27 Jun 2026",
-      thumbnailUrl: null,
-      teamColor: "#132257",
-    },
-  ],
+const EMPTY_VIDEOS_FEED = {
+  videos: [],
   seeMoreLabel: "See more",
 };
 
-const VIDEOS_FEED_BY_CLUB = {
-  ARS: {
-    videos: VIDEOS_SAMPLE_FEED.videos.filter((video) => video.id.startsWith("881")),
-    seeMoreLabel: "See more",
-  },
-  LFC: {
-    videos: [
-      VIDEOS_SAMPLE_FEED.videos[3],
-      VIDEOS_SAMPLE_FEED.videos[4],
-      {
-        id: "77204",
-        title: "Liverpool's Academy Transfer Plans | Expert Insight",
-        channelName: "THE ANFIELD WRAP",
-        date: "30 Jun 2026",
-        thumbnailUrl: "https://img.youtube.com/vi/9bZkp7q19f0/hqdefault.jpg",
-      },
-      {
-        id: "77205",
-        title: "Slot's first summer window — grades for every Liverpool signing",
-        channelName: "THE ANFIELD WRAP",
-        date: "28 Jun 2026",
-        thumbnailUrl: "https://img.youtube.com/vi/kJQP7kiw5Fk/hqdefault.jpg",
-      },
-      VIDEOS_SAMPLE_FEED.videos[5],
-      {
-        id: "77206",
-        title: "Every angle on Liverpool's pre-season friendly win",
-        channelName: "THE ANFIELD WRAP",
-        date: "26 Jun 2026",
-        thumbnailUrl: "https://img.youtube.com/vi/ScMzIvxBSi4/hqdefault.jpg",
-      },
-    ],
-    seeMoreLabel: "See more",
-  },
-};
-
 function getVideosFeedForClub(code) {
-  if (code && VIDEOS_FEED_BY_CLUB[code]) {
-    return VIDEOS_FEED_BY_CLUB[code];
+  if (code && videosCache[code]) {
+    return videosCache[code];
   }
 
-  return VIDEOS_SAMPLE_FEED;
+  return EMPTY_VIDEOS_FEED;
 }
 
 function buildVideoThumbMarkup(video) {
@@ -783,6 +750,58 @@ function buildVideoCardMarkup(video) {
   `;
 }
 
+const EMPTY_SOCIAL_FEED = {
+  tweets: [],
+};
+
+function getSocialFeedForClub(code) {
+  if (code && socialFeedCache[code]) {
+    return socialFeedCache[code];
+  }
+
+  return EMPTY_SOCIAL_FEED;
+}
+
+function buildSocialFeedLoadingMarkup() {
+  return `
+    <div class="sl-club-story-feed-img sl-club-story-feed-img--social sl-club-story-feed-img--loading" data-testid="club-story-social-feed-loading">
+      <div class="sl-app-top-stories-loading" aria-live="polite">
+        <span class="sl-app-top-stories-loading-spinner" aria-hidden="true"></span>
+        <span class="sl-app-top-stories-loading-text">Loading social posts…</span>
+      </div>
+    </div>
+  `;
+}
+
+function buildSocialFeedMarkup(feed) {
+  const tweets = feed.tweets
+    .map(
+      (tweet) => `
+        <article class="sl-club-story-tweet" data-tweet-id="${escapeHtml(tweet.id)}">
+          <div class="sl-club-story-tweet-body">${tweet.html}</div>
+        </article>
+      `,
+    )
+    .join("");
+
+  return `
+    <div class="sl-club-story-feed-img sl-club-story-feed-img--social" data-testid="club-story-social-feed">
+      ${tweets}
+    </div>
+  `;
+}
+
+function buildVideosLoadingMarkup() {
+  return `
+    <section class="sl-app-videos-feed sl-app-videos-feed--loading" id="content-section-film-room" data-testid="film-room-content" aria-label="film-room-content">
+      <div class="sl-app-top-stories-loading" data-testid="film-room-loading" aria-live="polite">
+        <span class="sl-app-top-stories-loading-spinner" aria-hidden="true"></span>
+        <span class="sl-app-top-stories-loading-text">Loading videos…</span>
+      </div>
+    </section>
+  `;
+}
+
 function buildVideosFeedMarkup(feed) {
   return `
     <section class="sl-app-videos-feed" id="content-section-film-room" data-testid="film-room-content" aria-label="film-room-content">
@@ -808,6 +827,44 @@ function decodeHtmlEntities(text) {
   const textarea = document.createElement("textarea");
   textarea.innerHTML = text;
   return textarea.value;
+}
+
+async function loadSocialFeedForClub(code) {
+  if (!code || !window.SideLineAPI?.fetchSocialFeedForClub) return;
+
+  socialFeedLoadingCode = code;
+  renderClubStoryPhoneStep(3, code);
+
+  try {
+    const feed = await window.SideLineAPI.fetchSocialFeedForClub(code, { perPage: 5 });
+    socialFeedCache[code] = feed;
+  } catch (error) {
+    console.warn("Social feed fetch failed:", error);
+  } finally {
+    if (socialFeedLoadingCode === code) {
+      socialFeedLoadingCode = null;
+    }
+    renderClubStoryPhoneStep(3, code);
+  }
+}
+
+async function loadVideosForClub(code) {
+  if (!code || !window.SideLineAPI?.fetchVideosForClub) return;
+
+  videosLoadingCode = code;
+  renderClubStoryPhoneStep(2, code);
+
+  try {
+    const feed = await window.SideLineAPI.fetchVideosForClub(code, { perPage: 6 });
+    videosCache[code] = feed;
+  } catch (error) {
+    console.warn("Videos fetch failed:", error);
+  } finally {
+    if (videosLoadingCode === code) {
+      videosLoadingCode = null;
+    }
+    renderClubStoryPhoneStep(2, code);
+  }
 }
 
 function getTopStoriesFeedForClub(code) {
@@ -953,13 +1010,22 @@ function buildClubStoryFeedBodyMarkup(stepIndex, clubCode) {
   }
 
   if (stepIndex === 2) {
+    if (videosLoadingCode === clubCode) {
+      return buildVideosLoadingMarkup();
+    }
+
     return buildVideosFeedMarkup(getVideosFeedForClub(clubCode));
   }
 
-  const imgSrc = CLUB_STORY_FEED_IMAGES[stepIndex];
-  const socialFeed = CLUB_STORY_FEED_MODES[stepIndex] === "for-me";
+  if (stepIndex === 3) {
+    if (socialFeedLoadingCode === clubCode) {
+      return buildSocialFeedLoadingMarkup();
+    }
 
-  return `<img class="sl-club-story-feed-img${socialFeed ? " sl-club-story-feed-img--social" : ""}" src="${imgSrc}" alt="" loading="lazy" />`;
+    return buildSocialFeedMarkup(getSocialFeedForClub(clubCode));
+  }
+
+  return "";
 }
 
 function buildHomeChromeMarkup(feedMode) {
@@ -1013,29 +1079,21 @@ function buildClubStoryPhoneMarkup(stepIndex, clubCode = clubSelectorState.selec
   `;
 }
 
-function syncClubStoryPhoneScaleForScreen(screen) {
-  const scaler = screen.querySelector(".sl-club-story-app-scaler");
-  const viewport = screen.querySelector(".sl-app-home-viewport");
-
-  if (!scaler || !viewport) return;
-
-  const availableWidth = screen.clientWidth;
-  const availableHeight = screen.clientHeight;
-  const scale = Math.min(
-    availableWidth / CLUB_SELECTOR_APP.width,
-    availableHeight / CLUB_SELECTOR_APP.height,
-  );
-
-  viewport.style.setProperty("--sl-app-scale", String(scale));
-  scaler.style.height = `${CLUB_SELECTOR_APP.height * scale}px`;
+function shouldRenderClubStoryPhoneStep(stepIndex) {
+  if (!clubSelectorState.storyUnlocked) return stepIndex === 0;
+  return clubSelectorState.currentStoryStep === stepIndex;
 }
 
 function renderClubStoryPhoneStep(stepIndex, clubCode = clubSelectorState.selectedCode) {
-  const screen = document.querySelector(`.sl-club-story-phone-screen[data-club-story-feed="${stepIndex}"]`);
+  if (!shouldRenderClubStoryPhoneStep(stepIndex)) return;
+
+  const screen = document.querySelector(".sl-club-selector-story-phone-screen[data-club-story-feed]");
   if (!screen) return;
 
+  screen.dataset.clubStoryFeed = String(stepIndex);
   screen.innerHTML = buildClubStoryPhoneMarkup(stepIndex, clubCode);
   syncClubStoryPhoneScaleForScreen(screen);
+  window.requestAnimationFrame(() => syncClubStoryPhoneScaleForScreen(screen));
 }
 
 function refreshTopStoriesPhoneFeed(clubCode = clubSelectorState.selectedCode) {
@@ -1047,15 +1105,15 @@ function refreshPodcastsPhoneFeed(clubCode = clubSelectorState.selectedCode) {
 }
 
 function refreshVideosPhoneFeed(clubCode = clubSelectorState.selectedCode) {
-  renderClubStoryPhoneStep(2, clubCode);
+  void loadVideosForClub(clubCode);
+}
+
+function refreshSocialPhoneFeed(clubCode = clubSelectorState.selectedCode) {
+  void loadSocialFeedForClub(clubCode);
 }
 
 function renderClubStoryPhoneSteps() {
-  document.querySelectorAll(".sl-club-story-phone-screen[data-club-story-feed]").forEach((screen) => {
-    const stepIndex = Number(screen.dataset.clubStoryFeed);
-    if (Number.isNaN(stepIndex)) return;
-    renderClubStoryPhoneStep(stepIndex);
-  });
+  renderClubStoryPhoneStep(0);
 }
 
 function getClubPrimaryColor(code) {
@@ -1074,14 +1132,19 @@ function applyClubPrimaryColor(code) {
 }
 
 function bootClubStoryPhoneViewports() {
-  document.querySelectorAll(".sl-club-story-phone-screen").forEach((screen) => {
-    syncClubStoryPhoneScaleForScreen(screen);
+  const storyScreen = document.querySelector(".sl-club-selector-story-phone-screen[data-club-story-feed]");
+  if (!storyScreen) return;
 
-    if (window.ResizeObserver) {
-      const observer = new ResizeObserver(() => syncClubStoryPhoneScaleForScreen(screen));
-      observer.observe(screen);
-    }
-  });
+  const sync = () => syncClubStoryPhoneScaleForScreen(storyScreen);
+  sync();
+
+  if (window.ResizeObserver) {
+    const observer = new ResizeObserver(sync);
+    observer.observe(storyScreen);
+
+    const sharedPhone = document.querySelector("#sl-club-selector-shared-phone");
+    if (sharedPhone) observer.observe(sharedPhone);
+  }
 }
 
 const CLUB_HEADLINE_NAMES = {
@@ -1130,6 +1193,12 @@ const clubSelectorState = {
 const topStoriesCache = {};
 let topStoriesLoadingCode = null;
 
+const videosCache = {};
+let videosLoadingCode = null;
+
+const socialFeedCache = {};
+let socialFeedLoadingCode = null;
+
 let clubSelectorPinController = null;
 
 function getClubHeadlineName(code) {
@@ -1145,6 +1214,7 @@ function updateClubStoryHeadlines(code) {
   refreshTopStoriesPhoneFeed(code);
   refreshPodcastsPhoneFeed(code);
   refreshVideosPhoneFeed(code);
+  refreshSocialPhoneFeed(code);
   applyClubPrimaryColor(code);
 
   clubSelectorState.headlines = CLUB_STORY_HEADLINE_BUILDERS.map((buildHeadline) => buildHeadline(name));
@@ -1453,28 +1523,86 @@ function bootClubSelectorStory() {
   const panel = document.querySelector("#sl-club-selector-panel");
   const pickPhase = document.querySelector("#sl-club-selector-phase-pick");
   const storyPhase = document.querySelector("#sl-club-selector-phase-story");
+  const heading = document.querySelector("#sl-club-selector-heading");
   const arrow = document.querySelector("#sl-club-selector-pick-arrow");
+  const sharedPhone = document.querySelector("#sl-club-selector-shared-phone");
+  const pickSpacer = document.querySelector("#sl-club-selector-pick-phone-spacer");
+  const storySlot = document.querySelector("#sl-club-selector-story-phone-slot");
+  const textWrap = document.querySelector("#sl-club-selector-text-wrap");
+  const pickScreenLayer = document.querySelector(".sl-club-selector-screen-pick");
+  const storyScreenLayer = document.querySelector(".sl-club-selector-screen-story");
 
-  if (!wrap || !pinShell || !panel || !pickPhase || !storyPhase) return;
+  if (!wrap || !pinShell || !panel || !pickPhase || !storyPhase || !sharedPhone || !pickSpacer || !storySlot) {
+    return;
+  }
 
-  const phoneSteps = [...document.querySelectorAll(".sl-club-story-phone-step")];
   const stepperItems = [...document.querySelectorAll(".sl-club-story-stepper-item")];
   const storyHeadline = document.querySelector("#sl-club-story-headline");
   const changeClubButton = document.querySelector("#sl-club-story-change-club");
 
-  const STORY_STEP_COUNT = stepperItems.length || phoneSteps.length || 4;
+  const STORY_STEP_COUNT = stepperItems.length || 4;
 
   const PICK_HOLD = 0.5;
   const STEP_HOLD = 0.5;
-  const STORY_TRANSITION = 0.375;
   const PICK_SCROLL_VIEWPORTS = 0.5;
   const STORY_SCROLL_VIEWPORTS = 2;
   const TOTAL_SCROLL_VIEWPORTS = PICK_SCROLL_VIEWPORTS + STORY_SCROLL_VIEWPORTS;
   const PICK_PROGRESS_CAP = PICK_SCROLL_VIEWPORTS / TOTAL_SCROLL_VIEWPORTS;
+  const PHONE_SLIDE_DURATION = 0.85;
 
   let clubScrollTrigger = null;
   let clubTimeline = null;
   let isClampingScroll = false;
+
+  function getRelativeRect(element, container) {
+    const elementRect = element.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    return {
+      left: elementRect.left - containerRect.left,
+      top: elementRect.top - containerRect.top,
+      width: elementRect.width,
+      height: elementRect.height,
+    };
+  }
+
+  function positionSharedPhoneAt(target) {
+    if (!target) return;
+
+    const rect = getRelativeRect(target, panel);
+    if (window.gsap) {
+      gsap.set(sharedPhone, rect);
+    } else {
+      Object.assign(sharedPhone.style, {
+        left: `${rect.left}px`,
+        top: `${rect.top}px`,
+        width: `${rect.width}px`,
+        height: `${rect.height}px`,
+      });
+    }
+
+    window.requestAnimationFrame(() => {
+      syncClubSelectorPhoneScales();
+    });
+  }
+
+  function positionSharedPhoneAtPick() {
+    positionSharedPhoneAt(pickSpacer);
+  }
+
+  function positionSharedPhoneAtStory() {
+    positionSharedPhoneAt(storySlot);
+  }
+
+  function setPhoneScreenMode(mode) {
+    const isStory = mode === "story";
+
+    pickScreenLayer?.classList.toggle("is-active", !isStory);
+    if (pickScreenLayer) pickScreenLayer.hidden = isStory;
+    storyScreenLayer?.classList.toggle("is-active", isStory);
+    if (storyScreenLayer) storyScreenLayer.hidden = !isStory;
+    sharedPhone.classList.toggle("is-interactive", !isStory);
+  }
 
   function setStoryStep(index) {
     const stepIndex = Math.max(0, Math.min(STORY_STEP_COUNT - 1, index));
@@ -1491,11 +1619,9 @@ function bootClubSelectorStory() {
       trigger?.setAttribute("aria-current", isActive ? "step" : "false");
     });
 
-    phoneSteps.forEach((step, phoneIndex) => {
-      const isActive = phoneIndex === stepIndex;
-      step.classList.toggle("is-active", isActive);
-      step.setAttribute("aria-hidden", isActive ? "false" : "true");
-    });
+    if (clubSelectorState.storyUnlocked) {
+      renderClubStoryPhoneStep(stepIndex);
+    }
   }
 
   function scrollToStoryStep(stepIndex) {
@@ -1512,11 +1638,6 @@ function bootClubSelectorStory() {
     }
 
     setStoryStep(step);
-    if (window.gsap) {
-      phoneSteps.forEach((phone, phoneIndex) => {
-        gsap.set(phone, { opacity: phoneIndex === step ? 1 : 0 });
-      });
-    }
   }
 
   function bootClubStoryStepper() {
@@ -1531,47 +1652,100 @@ function bootClubSelectorStory() {
   }
 
   function resetToPickPhase() {
-    cancelAutoPickSequence();
-    clubSelectorState.storyUnlocked = false;
-    clubSelectorState.selectedCode = null;
-    clubSelectorState.transitioning = false;
-    clubSelectorState.currentStoryStep = 0;
+    if (clubSelectorState.transitioning) return;
 
-    document.querySelectorAll(".sl-app-team-card").forEach((card) => {
-      card.classList.remove("selected");
-      card.setAttribute("aria-pressed", "false");
-    });
+    const runReset = () => {
+      cancelAutoPickSequence();
+      clubSelectorState.storyUnlocked = false;
+      clubSelectorState.selectedCode = null;
+      clubSelectorState.transitioning = false;
+      clubSelectorState.currentStoryStep = 0;
 
-    const nextButton = document.querySelector("#sl-club-selector-next-button");
-    if (nextButton) {
-      nextButton.disabled = true;
-      nextButton.setAttribute("aria-disabled", "true");
+      document.querySelectorAll(".sl-app-team-card").forEach((card) => {
+        card.classList.remove("selected");
+        card.setAttribute("aria-pressed", "false");
+      });
+
+      const nextButton = document.querySelector("#sl-club-selector-next-button");
+      if (nextButton) {
+        nextButton.disabled = true;
+        nextButton.setAttribute("aria-disabled", "true");
+      }
+
+      panel.classList.remove("is-story-active");
+      storyPhase.hidden = true;
+      storyPhase.setAttribute("aria-hidden", "true");
+      pickPhase.hidden = false;
+      pickPhase.classList.add("is-active");
+      pickPhase.setAttribute("aria-hidden", "false");
+      arrow?.classList.remove("is-visible");
+      clubSelectorState.arrowShown = false;
+
+      setPhoneScreenMode("pick");
+      positionSharedPhoneAtPick();
+      syncClubSelectorPhoneScales();
+
+      if (window.gsap) {
+        gsap.set(storyPhase, { opacity: 0, visibility: "hidden", pointerEvents: "none" });
+        gsap.set(pickPhase, { opacity: 1, visibility: "visible" });
+        gsap.set([heading, arrow], { opacity: 1, visibility: "visible" });
+        gsap.set(textWrap, { opacity: 0 });
+      }
+
+      clubSelectorState.headlines = [];
+      if (storyHeadline) storyHeadline.textContent = "";
+      applyClubPrimaryColor(null);
+      setStoryStep(0);
+      renderClubStoryPhoneStep(0);
+
+      const trigger = ScrollTrigger.getById("club-selector-scroll");
+      if (trigger) {
+        trigger.scroll(trigger.start);
+      }
+    };
+
+    if (prefersReducedMotion || !window.gsap || !clubSelectorState.storyUnlocked) {
+      runReset();
+      return;
     }
 
-    panel.classList.remove("is-story-active");
-    storyPhase.hidden = true;
-    storyPhase.setAttribute("aria-hidden", "true");
-    pickPhase.hidden = false;
-    pickPhase.classList.add("is-active");
-    pickPhase.setAttribute("aria-hidden", "false");
-    arrow?.classList.remove("is-visible");
-    clubSelectorState.arrowShown = false;
+    clubSelectorState.transitioning = true;
+    const startRect = getRelativeRect(sharedPhone, panel);
 
-    if (window.gsap) {
-      gsap.set(storyPhase, { opacity: 0, visibility: "hidden" });
-      gsap.set(pickPhase, { opacity: 1, visibility: "visible" });
-      gsap.set(phoneSteps, { opacity: 0 });
-    }
+    gsap
+      .timeline({
+        onComplete() {
+          runReset();
+        },
+      })
+      .to(textWrap, { opacity: 0, duration: 0.3, ease: "power1.inOut" })
+      .call(() => {
+        gsap.set(sharedPhone, {
+          left: startRect.left,
+          top: startRect.top,
+          width: startRect.width,
+          height: startRect.height,
+        });
 
-    clubSelectorState.headlines = [];
-    if (storyHeadline) storyHeadline.textContent = "";
-    applyClubPrimaryColor(null);
-    setStoryStep(0);
-
-    const trigger = ScrollTrigger.getById("club-selector-scroll");
-    if (trigger) {
-      trigger.scroll(trigger.start);
-    }
+        panel.classList.remove("is-story-active");
+        pickPhase.hidden = false;
+        pickPhase.classList.add("is-active");
+        pickPhase.setAttribute("aria-hidden", "false");
+        gsap.set(storyPhase, { opacity: 0, visibility: "hidden", pointerEvents: "none" });
+        gsap.set([heading, arrow], { opacity: 0, visibility: "visible" });
+      })
+      .to(
+        sharedPhone,
+        {
+          left: () => getRelativeRect(pickSpacer, panel).left,
+          top: () => getRelativeRect(pickSpacer, panel).top,
+          duration: PHONE_SLIDE_DURATION,
+          ease: "power2.inOut",
+        },
+        ">0.05",
+      )
+      .call(() => setPhoneScreenMode("pick"), null, ">")
+      .to([heading, arrow], { opacity: 1, duration: 0.35, ease: "power2.out" }, "<0.05");
   }
 
   function destroyClubScroll() {
@@ -1581,30 +1755,24 @@ function bootClubSelectorStory() {
     clubTimeline = null;
   }
 
-  function hidePickPhase() {
-    pickPhase.classList.remove("is-active");
-    pickPhase.hidden = true;
-    pickPhase.setAttribute("aria-hidden", "true");
-    arrow?.classList.remove("is-visible");
-
-    if (window.gsap) {
-      gsap.set([pickPhase, arrow], { clearProps: "opacity,visibility" });
-    }
-  }
-
   function showStoryPhase() {
     storyPhase.hidden = false;
     storyPhase.setAttribute("aria-hidden", "false");
     panel.classList.add("is-story-active");
-    hidePickPhase();
 
     if (window.gsap) {
-      gsap.set(storyPhase, { opacity: 1, visibility: "visible" });
-      gsap.set(phoneSteps, { opacity: 0 });
-      gsap.set(phoneSteps[0], { opacity: 1 });
+      gsap.set(storyPhase, { opacity: 1, visibility: "visible", pointerEvents: "auto" });
+      gsap.set(textWrap, { opacity: 1 });
+    } else {
+      storyPhase.style.opacity = "1";
+      storyPhase.style.visibility = "visible";
+      storyPhase.style.pointerEvents = "auto";
+      if (textWrap) textWrap.style.opacity = "1";
     }
 
-    setStoryStep(0);
+    setPhoneScreenMode("story");
+    positionSharedPhoneAtStory();
+    setStoryStep(clubSelectorState.currentStoryStep);
   }
 
   function clampToPickPhase(self) {
@@ -1637,12 +1805,14 @@ function bootClubSelectorStory() {
 
     destroyClubScroll();
 
-    gsap.set(storyPhase, { opacity: 0, visibility: "hidden" });
+    gsap.set(storyPhase, { opacity: 0, visibility: "hidden", pointerEvents: "none" });
     gsap.set(pickPhase, { opacity: 1, visibility: "visible" });
-    gsap.set(phoneSteps, { opacity: 0 });
+    gsap.set(textWrap, { opacity: 0 });
     panel.classList.remove("is-story-active");
     pickPhase.hidden = false;
     pickPhase.setAttribute("aria-hidden", "false");
+    setPhoneScreenMode("pick");
+    positionSharedPhoneAtPick();
 
     clubTimeline = gsap.timeline({
       defaults: { ease: "power1.inOut" },
@@ -1670,7 +1840,6 @@ function bootClubSelectorStory() {
         },
         onLeaveBack() {
           if (clubSelectorState.storyUnlocked) {
-            hidePickPhase();
             panel.classList.add("is-story-active");
           }
         },
@@ -1681,13 +1850,8 @@ function bootClubSelectorStory() {
 
     clubTimeline.to({}, { duration: PICK_HOLD });
 
-    clubTimeline.to({}, { duration: STEP_HOLD });
-
-    for (let index = 1; index < phoneSteps.length; index += 1) {
-      clubTimeline
-        .to(phoneSteps[index - 1], { opacity: 0, duration: STORY_TRANSITION })
-        .to(phoneSteps[index], { opacity: 1, duration: STORY_TRANSITION }, "<")
-        .to({}, { duration: STEP_HOLD });
+    for (let index = 0; index < STORY_STEP_COUNT; index += 1) {
+      clubTimeline.to({}, { duration: STEP_HOLD });
     }
   }
 
@@ -1704,18 +1868,63 @@ function bootClubSelectorStory() {
     clubSelectorState.transitioning = true;
 
     if (prefersReducedMotion || !window.gsap) {
+      if (window.gsap) {
+        gsap.set([heading, arrow], { opacity: 0 });
+      } else {
+        if (heading) heading.style.opacity = "0";
+        if (arrow) arrow.style.opacity = "0";
+      }
+
+      storyPhase.hidden = false;
+      setPhoneScreenMode("story");
+      renderClubStoryPhoneStep(0);
+      positionSharedPhoneAtStory();
       finishStoryTransition();
       return;
     }
+
+    storyPhase.hidden = false;
+    gsap.set(storyPhase, { opacity: 0, visibility: "hidden", pointerEvents: "none" });
+
+    const storyRect = getRelativeRect(storySlot, panel);
 
     gsap
       .timeline({
         onComplete: finishStoryTransition,
       })
-      .to([pickPhase, arrow], { opacity: 0, duration: 0.5, ease: "power1.inOut" })
-      .set(storyPhase, { visibility: "visible" })
-      .to(storyPhase, { opacity: 1, duration: 0.35, ease: "power2.out" }, "<0.1");
+      .to([heading, arrow], { opacity: 0, duration: 0.4, ease: "power1.inOut" })
+      .to(
+        sharedPhone,
+        {
+          left: storyRect.left,
+          top: storyRect.top,
+          duration: PHONE_SLIDE_DURATION,
+          ease: "power2.inOut",
+        },
+        0.15,
+      )
+      .call(() => {
+        setPhoneScreenMode("story");
+        renderClubStoryPhoneStep(0);
+      })
+      .set(storyPhase, { visibility: "visible", pointerEvents: "auto" })
+      .to(storyPhase, { opacity: 1, duration: 0.2, ease: "power1.inOut" }, "<")
+      .to(textWrap, { opacity: 1, duration: 0.35, ease: "power2.out" }, "<0.05");
   }
+
+  positionSharedPhoneAtPick();
+  window.addEventListener("resize", () => {
+    if (clubSelectorState.transitioning) return;
+
+    if (clubSelectorState.storyUnlocked) {
+      positionSharedPhoneAtStory();
+      syncClubSelectorPhoneScales();
+      return;
+    }
+
+    positionSharedPhoneAtPick();
+    syncClubSelectorPhoneScales();
+  });
 
   changeClubButton?.addEventListener("click", resetToPickPhase);
   bootClubStoryStepper();
@@ -1727,12 +1936,14 @@ function bootClubSelectorStory() {
   clubSelectorPinController = {
     buildClubScroll,
     refreshOnResize() {
-      syncClubSelectorAppViewport();
+      syncClubSelectorPhoneScales();
       const wasUnlocked = clubSelectorState.storyUnlocked;
       buildClubScroll();
       if (wasUnlocked) {
         clubSelectorState.storyUnlocked = true;
         showStoryPhase();
+      } else {
+        positionSharedPhoneAtPick();
       }
       ScrollTrigger.refresh(true);
     },
@@ -1762,7 +1973,6 @@ bootFeatureContentEntrances();
 bootFeaturePhoneEntrances();
 
 window.addEventListener("load", () => {
-  syncClubSelectorAppViewport();
-  if (prefersReducedMotion || !window.ScrollTrigger) return;
-  ScrollTrigger.refresh();
+  syncClubSelectorPhoneScales();
+  clubSelectorPinController?.refreshOnResize();
 });

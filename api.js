@@ -342,7 +342,7 @@ function parseVideoItem(item) {
   };
 }
 
-function buildVideosUrl({ clubTag, perPage = WP_API.perPage } = {}) {
+function buildVideosUrl({ clubTag, clubTagSlug, perPage = WP_API.perPage } = {}) {
   const params = new URLSearchParams({
     per_page: String(perPage),
     orderby: "date",
@@ -350,7 +350,9 @@ function buildVideosUrl({ clubTag, perPage = WP_API.perPage } = {}) {
     _embed: "1",
   });
 
-  if (clubTag) {
+  if (clubTagSlug) {
+    params.set("club_tag_slug", clubTagSlug);
+  } else if (clubTag) {
     params.set("club_tag", String(clubTag));
   }
 
@@ -366,6 +368,105 @@ async function fetchVideos(options = {}) {
 
   const items = await response.json();
   return items.map(parseVideoItem);
+}
+
+function formatVideoDate(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function toVideosFeed(items) {
+  return {
+    videos: items.map((item) => ({
+      id: String(item.id),
+      title: item.title,
+      channelName: item.channel || undefined,
+      date: formatVideoDate(item.date),
+      thumbnailUrl: item.image || null,
+    })),
+    seeMoreLabel: "See more",
+  };
+}
+
+async function fetchVideosForClub(clubCode, options = {}) {
+  const club = getClub(clubCode);
+  if (!club) {
+    throw new Error(`Unknown club code: ${clubCode}`);
+  }
+
+  const items = await fetchVideos({
+    clubTagSlug: club.slug,
+    perPage: options.perPage || 6,
+  });
+
+  return toVideosFeed(items);
+}
+
+function parseTweetItem(item) {
+  return {
+    id: item.id,
+    html: item.content?.rendered || "",
+  };
+}
+
+function buildTweetsUrl({ clubTag, clubTagSlug, perPage = 5 } = {}) {
+  const params = new URLSearchParams({
+    per_page: String(perPage),
+    orderby: "date",
+    order: "desc",
+  });
+
+  if (clubTag) {
+    params.set("club_tag", String(clubTag));
+  } else if (clubTagSlug) {
+    params.set("club_tag_slug", clubTagSlug);
+  }
+
+  return `${WP_API.baseUrl}/stm_tweet?${params.toString()}`;
+}
+
+async function fetchTweets(options = {}) {
+  const response = await fetch(buildTweetsUrl(options));
+
+  if (!response.ok) {
+    throw new Error(`Tweets request failed (${response.status})`);
+  }
+
+  const items = await response.json();
+  return items.map(parseTweetItem);
+}
+
+function toSocialFeed(items) {
+  return {
+    tweets: items.map((item) => ({
+      id: String(item.id),
+      html: item.html,
+    })),
+  };
+}
+
+async function fetchSocialFeedForClub(clubCode, options = {}) {
+  const club = getClub(clubCode);
+  if (!club) {
+    throw new Error(`Unknown club code: ${clubCode}`);
+  }
+
+  const perPage = options.perPage || 5;
+  let items = await fetchTweets({ clubTag: club.tagId, perPage });
+
+  if (!items.length) {
+    items = await fetchTweets({ clubTagSlug: club.slug, perPage });
+  }
+
+  return toSocialFeed(items);
 }
 
 function getClubTagId(clubCode) {
@@ -388,10 +489,13 @@ window.SideLineAPI = {
   fetchContent,
   fetchPodcasts,
   fetchVideos,
+  fetchVideosForClub,
+  fetchSocialFeedForClub,
   parseContentItem,
   parseTopStoriesItem,
   parsePodcastItem,
   parseVideoItem,
+  parseTweetItem,
   getClub,
   getClubTagId,
   getClubTagSlug,

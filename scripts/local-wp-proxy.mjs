@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const WP_BASE = "https://circleblox.wpengine.com/wp-json/wp/v2";
+const WP_CONTACT_URL = "https://circleblox.wpengine.com/wp-json/sideline/v1/contact";
 const PORT = Number(process.argv[2]) || 8080;
 
 const MIME = {
@@ -35,6 +36,45 @@ function sendJson(res, status, payload) {
     "Access-Control-Allow-Origin": "*",
   });
   res.end(JSON.stringify(payload));
+}
+
+async function proxyContact(req, res) {
+  try {
+    const chunks = [];
+    for await (const chunk of req) {
+      chunks.push(chunk);
+    }
+
+    const rawBody = Buffer.concat(chunks).toString("utf8");
+    const payload = rawBody ? JSON.parse(rawBody) : {};
+    const { name, email, message } = payload;
+
+    if (!String(name || "").trim() || !String(email || "").trim() || !String(message || "").trim()) {
+      sendJson(res, 400, { error: "Name, email, and message are required." });
+      return;
+    }
+
+    const wpResponse = await fetch(WP_CONTACT_URL, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: String(name).trim(),
+        email: String(email).trim(),
+        message: String(message).trim(),
+      }),
+    });
+
+    const body = await wpResponse.json().catch(() => ({}));
+    sendJson(res, wpResponse.status, body);
+  } catch (error) {
+    sendJson(res, 502, {
+      error: "Failed to send message.",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
 }
 
 async function proxyWp(req, res, wpPath, search) {
@@ -112,7 +152,7 @@ const server = http.createServer((req, res) => {
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     });
     res.end();
@@ -120,6 +160,11 @@ const server = http.createServer((req, res) => {
   }
 
   const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
+
+  if (url.pathname === "/api/contact" && req.method === "POST") {
+    void proxyContact(req, res);
+    return;
+  }
 
   if (url.pathname.startsWith("/api/wp/")) {
     const wpPath = url.pathname.replace(/^\/api\/wp\//, "");
@@ -146,7 +191,25 @@ const server = http.createServer((req, res) => {
   serveStatic(req, res, filePath);
 });
 
-server.listen(PORT, () => {
-  console.log(`TheSidelineWeb dev server: http://127.0.0.1:${PORT}`);
-  console.log(`WP proxy: http://127.0.0.1:${PORT}/api/wp/content?...`);
-});
+function startServer(port) {
+  server.removeAllListeners("listening");
+  server.removeAllListeners("error");
+
+  server.once("error", (error) => {
+    if (error.code === "EADDRINUSE" && port < 8099) {
+      console.warn(`Port ${port} is in use, trying ${port + 1}...`);
+      startServer(port + 1);
+      return;
+    }
+
+    throw error;
+  });
+
+  server.listen(port, () => {
+    console.log(`TheSidelineWeb dev server: http://127.0.0.1:${port}`);
+    console.log(`WP proxy: http://127.0.0.1:${port}/api/wp/content?...`);
+    console.log(`Contact API: http://127.0.0.1:${port}/api/contact`);
+  });
+}
+
+startServer(PORT);
