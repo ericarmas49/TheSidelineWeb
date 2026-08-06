@@ -171,17 +171,17 @@ function bootAnimations() {
       ".section-heading, #sl-features-intro, .sl-benefits-title, .sl-benefit-card, .sl-cta-home-inner, .sl-footer",
     )
     .forEach((el) => {
-      gsap.from(el, {
-        y: 42,
-        opacity: 0,
-        duration: 0.8,
-        ease: "power2.out",
-        scrollTrigger: {
-          trigger: el,
-          start: "top 84%",
-        },
-      });
+    gsap.from(el, {
+      y: 42,
+      opacity: 0,
+      duration: 0.8,
+      ease: "power2.out",
+      scrollTrigger: {
+        trigger: el,
+        start: "top 84%",
+      },
     });
+  });
 
   bootClubSelectorStoryPin();
 }
@@ -213,23 +213,43 @@ function bootHeroVideo() {
 }
 
 function bootHeroPhoneStatusBar() {
-  const timeEls = document.querySelectorAll(".sl-phone-status-time");
-
-  if (!timeEls.length) return;
-
   function updateTime() {
     const label = new Date().toLocaleTimeString(undefined, {
       hour: "numeric",
       minute: "2-digit",
     });
 
-    timeEls.forEach((timeEl) => {
+    document.querySelectorAll(".sl-phone-status-time").forEach((timeEl) => {
       timeEl.textContent = label;
     });
   }
 
   updateTime();
   window.setInterval(updateTime, 30000);
+}
+
+function buildPhoneStatusBarMarkup() {
+  return `
+    <div class="sl-phone-status-bar" aria-hidden="true">
+      <time class="sl-phone-status-time">9:41</time>
+      <div class="sl-phone-status-icons">
+        <svg class="sl-phone-status-icon sl-phone-status-signal" viewBox="0 0 18 12" focusable="false">
+          <rect x="0" y="8" width="3" height="4" rx="0.5" fill="currentColor" />
+          <rect x="5" y="5.5" width="3" height="6.5" rx="0.5" fill="currentColor" />
+          <rect x="10" y="3" width="3" height="9" rx="0.5" fill="currentColor" />
+          <rect x="15" y="0.5" width="3" height="11.5" rx="0.5" fill="currentColor" opacity="0.35" />
+        </svg>
+        <svg class="sl-phone-status-icon sl-phone-status-wifi" viewBox="0 0 16 12" focusable="false">
+          <path fill="currentColor" d="M8 11.2a1.1 1.1 0 1 0 0-2.2 1.1 1.1 0 0 0 0 2.2Zm-3.1-2.3a4.6 4.6 0 0 1 6.2 0l.9-.9a5.9 5.9 0 0 0-8 0l.9.9Zm-2.5-2.4a8.2 8.2 0 0 1 11 0l.9-.9a9.5 9.5 0 0 0-12.8 0l.9.9Z" />
+        </svg>
+        <svg class="sl-phone-status-icon sl-phone-status-battery" viewBox="0 0 27 13" focusable="false">
+          <rect x="0.75" y="0.75" width="21.5" height="11.5" rx="3" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.55" />
+          <rect x="2.5" y="2.5" width="16.5" height="8" rx="1.5" fill="currentColor" />
+          <rect x="23.5" y="4.25" width="2.25" height="4.5" rx="1" fill="currentColor" opacity="0.55" />
+        </svg>
+      </div>
+    </div>
+  `;
 }
 
 const CLUB_SELECTOR_APP = {
@@ -396,7 +416,65 @@ const CLUB_PRIMARY_COLORS = {
   TOT: "#132257",
 };
 
-const CLUB_STORY_FEED_MODES = ["trending", "trending", "trending", "for-me"];
+const CLUB_STORY_FEED_SECTION_COUNT = 3;
+const CLUB_STORY_SOCIAL_STEP_INDEX = 3;
+const CLUB_STORY_STEP_COUNT = 4;
+
+function getStorySocialProgressThreshold(stepCount = CLUB_STORY_STEP_COUNT) {
+  return (stepCount - 1) / stepCount;
+}
+
+function getStoryStepProgressSpan(stepCount = CLUB_STORY_STEP_COUNT) {
+  return 1 / stepCount;
+}
+
+function getStoryProgressAnchorForStep(stepIndex) {
+  if (stepIndex >= CLUB_STORY_SOCIAL_STEP_INDEX) {
+    return getStorySocialProgressThreshold();
+  }
+
+  return stepIndex / CLUB_STORY_STEP_COUNT;
+}
+
+function getStoryStepFromStoryProgress(storyProgress) {
+  const socialThreshold = getStorySocialProgressThreshold();
+
+  if (storyProgress >= socialThreshold - 0.001) {
+    return CLUB_STORY_SOCIAL_STEP_INDEX;
+  }
+
+  const stepSpan = getStoryStepProgressSpan();
+  return Math.min(CLUB_STORY_FEED_SECTION_COUNT - 1, Math.floor(storyProgress / stepSpan));
+}
+
+function getFeedScrollTopForStoryProgress(feed, storyProgress) {
+  const socialThreshold = getStorySocialProgressThreshold();
+  const clampedProgress = Math.min(socialThreshold, Math.max(0, storyProgress));
+  const sections = [...feed.querySelectorAll("[data-club-story-section]")];
+  const maxScroll = Math.max(0, feed.scrollHeight - feed.clientHeight);
+
+  if (!sections.length || maxScroll <= 0) return 0;
+  if (clampedProgress <= 0) return 0;
+  if (clampedProgress >= socialThreshold) return maxScroll;
+
+  const stepSpan = getStoryStepProgressSpan();
+  const stepFloat = clampedProgress / stepSpan;
+  const stepIndex = Math.min(CLUB_STORY_FEED_SECTION_COUNT - 1, Math.floor(stepFloat));
+  const stepLocalProgress = Math.min(1, Math.max(0, stepFloat - stepIndex));
+  const sectionStart = getSectionTopInFeed(sections[stepIndex], feed);
+  const sectionEnd =
+    stepIndex < sections.length - 1 ? getSectionTopInFeed(sections[stepIndex + 1], feed) : maxScroll;
+
+  return sectionStart + stepLocalProgress * (sectionEnd - sectionStart);
+}
+
+function getCurrentStoryProgressFromPage() {
+  const trigger = clubStoryPhoneScroll.getScrollTrigger?.();
+  const pickProgressCap = clubStoryPhoneScroll.getPickProgressCap?.();
+  if (!trigger || typeof pickProgressCap !== "number") return 0;
+
+  return Math.min(1, Math.max(0, (trigger.progress - pickProgressCap) / (1 - pickProgressCap)));
+}
 
 const CLUB_STORY_APP_ASSETS = {
   profile: "assets/app/Profile-Icon-1.png",
@@ -765,6 +843,7 @@ function getSocialFeedForClub(code) {
 function buildSocialFeedLoadingMarkup() {
   return `
     <div class="sl-club-story-feed-img sl-club-story-feed-img--social sl-club-story-feed-img--loading" data-testid="club-story-social-feed-loading">
+      <h2 class="sl-app-social-section-title" id="club-story-social-title" data-testid="club-story-social-title">Social</h2>
       <div class="sl-app-top-stories-loading" aria-live="polite">
         <span class="sl-app-top-stories-loading-spinner" aria-hidden="true"></span>
         <span class="sl-app-top-stories-loading-text">Loading social posts…</span>
@@ -773,27 +852,103 @@ function buildSocialFeedLoadingMarkup() {
   `;
 }
 
+function buildTweetArticleMarkup(tweet) {
+  if (tweet.embedHtml) {
+    return `
+      <article class="sl-club-story-tweet sl-club-story-tweet--embed" data-tweet-id="${escapeHtml(tweet.id)}">
+        <div class="sl-club-story-tweet-embed">${tweet.embedHtml}</div>
+      </article>
+    `;
+  }
+
+  return `
+    <article class="sl-club-story-tweet" data-tweet-id="${escapeHtml(tweet.id)}">
+      <div class="sl-club-story-tweet-body">${tweet.html}</div>
+    </article>
+  `;
+}
+
 function buildSocialFeedMarkup(feed) {
-  const tweets = feed.tweets
-    .map(
-      (tweet) => `
-        <article class="sl-club-story-tweet" data-tweet-id="${escapeHtml(tweet.id)}">
-          <div class="sl-club-story-tweet-body">${tweet.html}</div>
-        </article>
-      `,
-    )
-    .join("");
+  const tweets = feed.tweets.map((tweet) => buildTweetArticleMarkup(tweet)).join("");
 
   return `
     <div class="sl-club-story-feed-img sl-club-story-feed-img--social" data-testid="club-story-social-feed">
+      <h2 class="sl-app-social-section-title" id="club-story-social-title" data-testid="club-story-social-title">Social</h2>
       ${tweets}
     </div>
   `;
 }
 
+let twitterWidgetsLoader = null;
+
+function loadTwitterWidgetsScript() {
+  if (window.twttr?.widgets) {
+    return Promise.resolve(window.twttr);
+  }
+
+  if (twitterWidgetsLoader) {
+    return twitterWidgetsLoader;
+  }
+
+  twitterWidgetsLoader = new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[src*="platform.twitter.com/widgets.js"]');
+    if (existing) {
+      if (window.twttr?.widgets) {
+        resolve(window.twttr);
+        return;
+      }
+
+      existing.addEventListener("load", () => resolve(window.twttr));
+      existing.addEventListener("error", reject);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://platform.twitter.com/widgets.js";
+    script.async = true;
+    script.charset = "utf-8";
+    script.onload = () => resolve(window.twttr);
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+
+  return twitterWidgetsLoader;
+}
+
+async function hydrateClubStoryTwitterEmbeds(root) {
+  const container =
+    root ||
+    getClubStorySocialStage()?.querySelector("[data-testid='club-story-social-feed']") ||
+    getClubStorySocialStage();
+
+  if (!container) return;
+
+  const blockquotes = container.querySelectorAll("blockquote.twitter-tweet");
+  if (!blockquotes.length) return;
+
+  try {
+    const twttr = await loadTwitterWidgetsScript();
+    await twttr.widgets.load(container);
+
+    if (clubStoryPhoneScroll.socialActive) {
+      const syncAfterEmbeds = () => {
+        if (clubStoryPhoneScroll.socialTransitionRunning) return;
+        syncSocialStageScrollFromStoryProgress(getCurrentStoryProgressFromPage());
+      };
+
+      window.requestAnimationFrame(syncAfterEmbeds);
+      window.setTimeout(syncAfterEmbeds, 400);
+      window.setTimeout(syncAfterEmbeds, 1200);
+    }
+  } catch (error) {
+    console.warn("Twitter embed hydration failed:", error);
+  }
+}
+
 function buildVideosLoadingMarkup() {
   return `
     <section class="sl-app-videos-feed sl-app-videos-feed--loading" id="content-section-film-room" data-testid="film-room-content" aria-label="film-room-content">
+      <h2 class="sl-app-videos-section-title" id="film-room-title" data-testid="film-room-title">Videos</h2>
       <div class="sl-app-top-stories-loading" data-testid="film-room-loading" aria-live="polite">
         <span class="sl-app-top-stories-loading-spinner" aria-hidden="true"></span>
         <span class="sl-app-top-stories-loading-text">Loading videos…</span>
@@ -805,6 +960,7 @@ function buildVideosLoadingMarkup() {
 function buildVideosFeedMarkup(feed) {
   return `
     <section class="sl-app-videos-feed" id="content-section-film-room" data-testid="film-room-content" aria-label="film-room-content">
+      <h2 class="sl-app-videos-section-title" id="film-room-title" data-testid="film-room-title">Videos</h2>
       <div class="sl-app-film-room-videos" id="film-room-latest-videos-container" data-testid="film-room-latest-videos-container">
         ${feed.videos.map((video) => buildVideoCardMarkup(video)).join("")}
       </div>
@@ -833,7 +989,7 @@ async function loadSocialFeedForClub(code) {
   if (!code || !window.SideLineAPI?.fetchSocialFeedForClub) return;
 
   socialFeedLoadingCode = code;
-  renderClubStoryPhoneStep(3, code);
+  updateClubStorySocialStage(code);
 
   try {
     const feed = await window.SideLineAPI.fetchSocialFeedForClub(code, { perPage: 5 });
@@ -844,7 +1000,7 @@ async function loadSocialFeedForClub(code) {
     if (socialFeedLoadingCode === code) {
       socialFeedLoadingCode = null;
     }
-    renderClubStoryPhoneStep(3, code);
+    updateClubStorySocialStage(code);
   }
 }
 
@@ -852,7 +1008,7 @@ async function loadVideosForClub(code) {
   if (!code || !window.SideLineAPI?.fetchVideosForClub) return;
 
   videosLoadingCode = code;
-  renderClubStoryPhoneStep(2, code);
+  updateClubStoryFeedSection(2, code);
 
   try {
     const feed = await window.SideLineAPI.fetchVideosForClub(code, { perPage: 6 });
@@ -863,7 +1019,7 @@ async function loadVideosForClub(code) {
     if (videosLoadingCode === code) {
       videosLoadingCode = null;
     }
-    renderClubStoryPhoneStep(2, code);
+    updateClubStoryFeedSection(2, code);
   }
 }
 
@@ -895,7 +1051,7 @@ async function loadTopStoriesForClub(code) {
   if (!code || !window.SideLineAPI?.fetchTopStories) return;
 
   topStoriesLoadingCode = code;
-  renderClubStoryPhoneStep(0, code);
+  updateClubStoryFeedSection(0, code);
 
   try {
     const feed = await window.SideLineAPI.fetchTopStories(code, {
@@ -912,7 +1068,7 @@ async function loadTopStoriesForClub(code) {
     if (topStoriesLoadingCode === code) {
       topStoriesLoadingCode = null;
     }
-    renderClubStoryPhoneStep(0, code);
+    updateClubStoryFeedSection(0, code);
   }
 }
 
@@ -1028,6 +1184,16 @@ function buildClubStoryFeedBodyMarkup(stepIndex, clubCode) {
   return "";
 }
 
+function buildCombinedClubStoryFeedMarkup(clubCode) {
+  return Array.from({ length: CLUB_STORY_FEED_SECTION_COUNT }, (_, sectionIndex) => {
+    return `
+      <div class="sl-club-story-feed-section" data-club-story-section="${sectionIndex}">
+        ${buildClubStoryFeedBodyMarkup(sectionIndex, clubCode)}
+      </div>
+    `;
+  }).join("");
+}
+
 function buildHomeChromeMarkup(feedMode) {
   const newsActive = feedMode === "trending";
   const { profile, logo, sidebar, filter, search } = CLUB_STORY_APP_ASSETS;
@@ -1061,39 +1227,133 @@ function buildHomeChromeMarkup(feedMode) {
   `;
 }
 
-function buildClubStoryPhoneMarkup(stepIndex, clubCode = clubSelectorState.selectedCode) {
-  const feedMode = CLUB_STORY_FEED_MODES[stepIndex];
+function buildClubStoryPhoneMarkup(clubCode = clubSelectorState.selectedCode) {
   const clubPrimary = getClubPrimaryColor(clubCode);
 
   return `
+    ${buildPhoneStatusBarMarkup()}
     <div class="sl-app-scaler sl-club-story-app-scaler">
       <div class="sl-app-viewport sl-app-home-viewport" style="--club-primary: ${clubPrimary}">
         <div class="sl-app-home-screen">
-          ${buildHomeChromeMarkup(feedMode)}
-          <div class="sl-app-home-feed">
-            ${buildClubStoryFeedBodyMarkup(stepIndex, clubCode)}
+          ${buildHomeChromeMarkup("trending")}
+          <div class="sl-app-home-content">
+            <div class="sl-app-home-feed" data-club-story-feed-scroll>
+              ${buildCombinedClubStoryFeedMarkup(clubCode)}
+            </div>
+            <div class="sl-app-home-social-stage" data-club-story-social-stage hidden>
+              ${buildClubStoryFeedBodyMarkup(CLUB_STORY_SOCIAL_STEP_INDEX, clubCode)}
+            </div>
           </div>
         </div>
       </div>
     </div>
+    <div class="sl-club-story-phone-shield" aria-hidden="true"></div>
   `;
 }
 
-function shouldRenderClubStoryPhoneStep(stepIndex) {
-  if (!clubSelectorState.storyUnlocked) return stepIndex === 0;
-  return clubSelectorState.currentStoryStep === stepIndex;
+function getClubStoryPhoneFeed() {
+  return document.querySelector(
+    ".sl-club-selector-story-phone-screen[data-club-story-feed] [data-club-story-feed-scroll]",
+  );
 }
 
-function renderClubStoryPhoneStep(stepIndex, clubCode = clubSelectorState.selectedCode) {
-  if (!shouldRenderClubStoryPhoneStep(stepIndex)) return;
+function getClubStorySocialStage() {
+  return document.querySelector(
+    ".sl-club-selector-story-phone-screen[data-club-story-feed] [data-club-story-social-stage]",
+  );
+}
 
+function getClubStoryPhoneRoot() {
+  return document.querySelector(".sl-club-selector-story-phone-screen[data-club-story-feed]");
+}
+
+function setHomeFeedToggle(activeMode) {
+  const root = getClubStoryPhoneRoot();
+  if (!root) return;
+
+  const newsButton = root.querySelector('[data-testid="home-filter-row-toggle-trending"]');
+  const socialButton = root.querySelector('[data-testid="home-filter-row-toggle-for-me"]');
+
+  newsButton?.classList.toggle("is-active", activeMode === "trending");
+  socialButton?.classList.toggle("is-active", activeMode === "social");
+}
+
+function animateHomeFeedToggleToSocial() {
+  const root = getClubStoryPhoneRoot();
+  const toggleContainer = root?.querySelector('[data-testid="home-filter-row-toggle-container"]');
+  toggleContainer?.classList.add("is-switching");
+  setHomeFeedToggle("social");
+  window.setTimeout(() => {
+    toggleContainer?.classList.remove("is-switching");
+  }, 320);
+}
+
+function animateHomeFeedToggleToNews() {
+  const root = getClubStoryPhoneRoot();
+  const toggleContainer = root?.querySelector('[data-testid="home-filter-row-toggle-container"]');
+  toggleContainer?.classList.add("is-switching");
+  setHomeFeedToggle("trending");
+  window.setTimeout(() => {
+    toggleContainer?.classList.remove("is-switching");
+  }, 320);
+}
+
+function updateClubStorySocialStage(clubCode = clubSelectorState.selectedCode) {
+  const stage = getClubStorySocialStage();
+  if (!stage) return;
+
+  stage.innerHTML = buildClubStoryFeedBodyMarkup(CLUB_STORY_SOCIAL_STEP_INDEX, clubCode);
+  window.requestAnimationFrame(() => {
+    void hydrateClubStoryTwitterEmbeds(stage);
+  });
+}
+
+function updateClubStoryFeedSection(sectionIndex, clubCode = clubSelectorState.selectedCode) {
+  const feed = getClubStoryPhoneFeed();
+  if (!feed) {
+    renderClubStoryPhoneFeed(clubCode);
+    return;
+  }
+
+  const section = feed.querySelector(`[data-club-story-section="${sectionIndex}"]`);
+  if (!section) {
+    renderClubStoryPhoneFeed(clubCode);
+    return;
+  }
+
+  section.innerHTML = buildClubStoryFeedBodyMarkup(sectionIndex, clubCode);
+}
+
+function renderClubStoryPhoneFeed(clubCode = clubSelectorState.selectedCode, { preserveScroll = true } = {}) {
   const screen = document.querySelector(".sl-club-selector-story-phone-screen[data-club-story-feed]");
   if (!screen) return;
 
-  screen.dataset.clubStoryFeed = String(stepIndex);
-  screen.innerHTML = buildClubStoryPhoneMarkup(stepIndex, clubCode);
+  const feed = getClubStoryPhoneFeed();
+  const scrollTop = preserveScroll ? (feed?.scrollTop ?? 0) : 0;
+
+  screen.dataset.clubStoryFeed = "combined";
+  screen.innerHTML = buildClubStoryPhoneMarkup(clubCode);
+  const storyStatusTime = screen.querySelector(".sl-phone-status-time");
+  if (storyStatusTime) {
+    storyStatusTime.textContent = new Date().toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
   syncClubStoryPhoneScaleForScreen(screen);
-  window.requestAnimationFrame(() => syncClubStoryPhoneScaleForScreen(screen));
+
+  const nextFeed = getClubStoryPhoneFeed();
+  if (nextFeed) {
+    nextFeed.scrollTop = scrollTop;
+    if (!preserveScroll) {
+      resetClubStoryPhoneScrollState();
+    }
+  }
+
+  window.requestAnimationFrame(() => {
+    syncClubStoryPhoneScaleForScreen(screen);
+    initClubStoryPhoneFeedScroll();
+  });
 }
 
 function refreshTopStoriesPhoneFeed(clubCode = clubSelectorState.selectedCode) {
@@ -1101,7 +1361,7 @@ function refreshTopStoriesPhoneFeed(clubCode = clubSelectorState.selectedCode) {
 }
 
 function refreshPodcastsPhoneFeed(clubCode = clubSelectorState.selectedCode) {
-  renderClubStoryPhoneStep(1, clubCode);
+  updateClubStoryFeedSection(1, clubCode);
 }
 
 function refreshVideosPhoneFeed(clubCode = clubSelectorState.selectedCode) {
@@ -1113,7 +1373,494 @@ function refreshSocialPhoneFeed(clubCode = clubSelectorState.selectedCode) {
 }
 
 function renderClubStoryPhoneSteps() {
-  renderClubStoryPhoneStep(0);
+  renderClubStoryPhoneFeed();
+}
+
+const clubStoryPhoneScroll = {
+  observer: null,
+  syncStep: null,
+  suppressPhoneFeedScrollSync: false,
+  socialActive: false,
+  socialTransitionRunning: false,
+  socialTransitionCleanup: null,
+  socialTransitionToken: 0,
+  socialTransitionCooldownUntil: 0,
+  socialScrollAnchorProgress: null,
+  pendingFeedStep: null,
+  getScrollTrigger: null,
+  getPickProgressCap: null,
+  boundFeed: null,
+  boundSocialStage: null,
+};
+
+const SOCIAL_TRANSITION_MS = 1100;
+const SOCIAL_TRANSITION_COOLDOWN_MS = 400;
+
+function isSocialTransitionLocked() {
+  return (
+    clubStoryPhoneScroll.socialTransitionRunning ||
+    Date.now() < clubStoryPhoneScroll.socialTransitionCooldownUntil
+  );
+}
+
+function startSocialTransitionToken() {
+  clubStoryPhoneScroll.socialTransitionToken += 1;
+  return clubStoryPhoneScroll.socialTransitionToken;
+}
+
+function isActiveSocialTransitionToken(token) {
+  return token === clubStoryPhoneScroll.socialTransitionToken;
+}
+
+function endSocialTransition() {
+  clubStoryPhoneScroll.socialTransitionRunning = false;
+  clubStoryPhoneScroll.socialTransitionCooldownUntil = Date.now() + SOCIAL_TRANSITION_COOLDOWN_MS;
+  clearClubStorySocialTransitionTimers();
+}
+
+function prepareSocialTransitionElements(feed, stage) {
+  if (feed) {
+    feed.hidden = false;
+    feed.style.opacity = "";
+    feed.classList.remove("is-fading-out", "is-fading-in", "is-fading-in-active");
+  }
+
+  if (stage) {
+    stage.style.opacity = "";
+    stage.classList.remove("is-fading-out", "is-entering");
+  }
+}
+function clearClubStorySocialTransitionTimers() {
+  clubStoryPhoneScroll.socialTransitionCleanup?.();
+  clubStoryPhoneScroll.socialTransitionCleanup = null;
+}
+
+function resetClubStorySocialView() {
+  startSocialTransitionToken();
+  clearClubStorySocialTransitionTimers();
+  clubStoryPhoneScroll.socialActive = false;
+  clubStoryPhoneScroll.socialTransitionRunning = false;
+  clubStoryPhoneScroll.socialTransitionCooldownUntil = 0;
+
+  const feed = getClubStoryPhoneFeed();
+  const stage = getClubStorySocialStage();
+  prepareSocialTransitionElements(feed, stage);
+
+  if (feed) {
+    feed.hidden = false;
+  }
+
+  if (stage) {
+    stage.hidden = true;
+    stage.classList.remove("is-visible");
+  }
+
+  clubStoryPhoneScroll.pendingFeedStep = null;
+  clubStoryPhoneScroll.socialScrollAnchorProgress = null;
+  setHomeFeedToggle("trending");
+}
+
+function finishSocialToVideosTransition(feed, stage, { fadeInFeed = false } = {}) {
+  stage.hidden = true;
+  stage.classList.remove("is-fading-out", "is-visible", "is-entering");
+  stage.style.opacity = "";
+
+  const maxScroll = Math.max(0, feed.scrollHeight - feed.clientHeight);
+  feed.scrollTop = maxScroll;
+  feed.hidden = false;
+  feed.classList.remove("is-fading-out");
+
+  if (fadeInFeed) {
+    feed.classList.add("is-fading-in");
+    window.requestAnimationFrame(() => {
+      feed.classList.add("is-fading-in-active");
+    });
+    window.setTimeout(() => {
+      feed.classList.remove("is-fading-in", "is-fading-in-active");
+    }, SOCIAL_TRANSITION_MS);
+  } else {
+    feed.classList.remove("is-fading-in", "is-fading-in-active");
+  }
+
+  clubStoryPhoneScroll.socialActive = false;
+  endSocialTransition();
+  clubStoryPhoneScroll.syncStep?.(2);
+
+  const pendingStep = clubStoryPhoneScroll.pendingFeedStep;
+  clubStoryPhoneScroll.pendingFeedStep = null;
+
+  if (typeof pendingStep === "number") {
+    window.requestAnimationFrame(() => {
+      scrollPhoneFeedToStep(pendingStep);
+    });
+  }
+}
+
+function runSocialToVideosTransition({ skipAnimation = false, animated = true, force = false } = {}) {
+  if (clubStoryPhoneScroll.socialTransitionRunning) return;
+
+  if (!clubStoryPhoneScroll.socialActive) {
+    return;
+  }
+
+  if (!force && isSocialTransitionLocked()) {
+    return;
+  }
+
+  const feed = getClubStoryPhoneFeed();
+  const stage = getClubStorySocialStage();
+  if (!feed || !stage) {
+    resetClubStorySocialView();
+    return;
+  }
+
+  const transitionToken = startSocialTransitionToken();
+  clearClubStorySocialTransitionTimers();
+  prepareSocialTransitionElements(feed, stage);
+
+  if (skipAnimation || prefersReducedMotion || !animated) {
+    setHomeFeedToggle("trending");
+    finishSocialToVideosTransition(feed, stage);
+    return;
+  }
+
+  clubStoryPhoneScroll.socialTransitionRunning = true;
+  stage.hidden = false;
+  stage.classList.add("is-visible");
+
+  let transitionFinished = false;
+
+  const finishTransition = () => {
+    if (transitionFinished || !isActiveSocialTransitionToken(transitionToken)) return;
+    if (!clubStoryPhoneScroll.socialTransitionRunning) return;
+
+    transitionFinished = true;
+    finishSocialToVideosTransition(feed, stage, { fadeInFeed: true });
+  };
+
+  const onStageFadeComplete = (event) => {
+    if (event.propertyName !== "opacity") return;
+    finishTransition();
+  };
+
+  stage.addEventListener("transitionend", onStageFadeComplete);
+
+  const toggleTimer = window.setTimeout(() => {
+    if (isActiveSocialTransitionToken(transitionToken)) {
+      animateHomeFeedToggleToNews();
+    }
+  }, 800);
+  const fallbackTimer = window.setTimeout(finishTransition, SOCIAL_TRANSITION_MS);
+
+  clubStoryPhoneScroll.socialTransitionCleanup = () => {
+    stage.removeEventListener("transitionend", onStageFadeComplete);
+    window.clearTimeout(toggleTimer);
+    window.clearTimeout(fallbackTimer);
+  };
+
+  window.requestAnimationFrame(() => {
+    if (!isActiveSocialTransitionToken(transitionToken)) return;
+    stage.classList.add("is-fading-out");
+  });
+}
+
+function deactivateClubStorySocialView(options = {}) {
+  runSocialToVideosTransition({ ...options, force: true });
+}
+
+function finishClubStorySocialTransition(feed, stage, { fadeInStage = false } = {}) {
+  feed.hidden = true;
+  feed.classList.remove("is-fading-out", "is-fading-in", "is-fading-in-active");
+  feed.style.opacity = "";
+  stage.hidden = false;
+  stage.classList.remove("is-fading-out");
+  stage.scrollTop = 0;
+
+  if (fadeInStage) {
+    stage.classList.add("is-entering");
+    window.requestAnimationFrame(() => {
+      stage.classList.add("is-visible");
+      void hydrateClubStoryTwitterEmbeds(stage);
+    });
+    window.setTimeout(() => {
+      stage.classList.remove("is-entering");
+    }, SOCIAL_TRANSITION_MS);
+  } else {
+    stage.classList.add("is-visible");
+    void hydrateClubStoryTwitterEmbeds(stage);
+  }
+
+  clubStoryPhoneScroll.socialActive = true;
+  endSocialTransition();
+  beginClubStorySocialScrollAnchor(getCurrentStoryProgressFromPage());
+}
+
+function runVideosToSocialTransition({ skipAnimation = false, animated = true, force = false } = {}) {
+  if (clubStoryPhoneScroll.socialActive) {
+    clubStoryPhoneScroll.syncStep?.(CLUB_STORY_SOCIAL_STEP_INDEX);
+    return;
+  }
+
+  if (clubStoryPhoneScroll.socialTransitionRunning) return;
+
+  if (!force && isSocialTransitionLocked()) {
+    return;
+  }
+
+  const feed = getClubStoryPhoneFeed();
+  const stage = getClubStorySocialStage();
+  const clubCode = clubSelectorState.selectedCode;
+  if (!feed || !stage || !clubCode) return;
+
+  const transitionToken = startSocialTransitionToken();
+  clubStoryPhoneScroll.socialTransitionRunning = true;
+  clubStoryPhoneScroll.syncStep?.(CLUB_STORY_SOCIAL_STEP_INDEX);
+  beginClubStorySocialScrollAnchor(getCurrentStoryProgressFromPage());
+  void loadSocialFeedForClub(clubCode);
+  updateClubStorySocialStage(clubCode);
+
+  const maxScroll = Math.max(0, feed.scrollHeight - feed.clientHeight);
+  feed.scrollTop = maxScroll;
+  prepareSocialTransitionElements(feed, stage);
+  stage.hidden = true;
+  stage.classList.remove("is-visible");
+
+  if (skipAnimation || prefersReducedMotion || !animated) {
+    setHomeFeedToggle("social");
+    finishClubStorySocialTransition(feed, stage);
+    return;
+  }
+
+  let transitionFinished = false;
+
+  const finishTransition = () => {
+    if (transitionFinished || !isActiveSocialTransitionToken(transitionToken)) return;
+    if (!clubStoryPhoneScroll.socialTransitionRunning) return;
+
+    transitionFinished = true;
+    finishClubStorySocialTransition(feed, stage, { fadeInStage: true });
+  };
+
+  const onFeedFadeComplete = (event) => {
+    if (event.propertyName !== "opacity") return;
+    finishTransition();
+  };
+
+  feed.addEventListener("transitionend", onFeedFadeComplete);
+
+  const toggleTimer = window.setTimeout(() => {
+    if (isActiveSocialTransitionToken(transitionToken)) {
+      animateHomeFeedToggleToSocial();
+    }
+  }, 800);
+  const fallbackTimer = window.setTimeout(finishTransition, SOCIAL_TRANSITION_MS);
+
+  clubStoryPhoneScroll.socialTransitionCleanup = () => {
+    feed.removeEventListener("transitionend", onFeedFadeComplete);
+    window.clearTimeout(toggleTimer);
+    window.clearTimeout(fallbackTimer);
+  };
+
+  window.requestAnimationFrame(() => {
+    if (!isActiveSocialTransitionToken(transitionToken)) return;
+    feed.classList.add("is-fading-out");
+  });
+}
+
+function resetClubStoryPhoneScrollState() {
+  clubStoryPhoneScroll.suppressPhoneFeedScrollSync = false;
+  resetClubStorySocialView();
+}
+
+function setClubStoryPhoneFeedScrollTop(feed, scrollTop) {
+  if (!feed) return;
+
+  clubStoryPhoneScroll.suppressPhoneFeedScrollSync = true;
+  feed.scrollTop = scrollTop;
+  window.requestAnimationFrame(() => {
+    clubStoryPhoneScroll.suppressPhoneFeedScrollSync = false;
+  });
+}
+
+function setClubStorySocialStageScrollTop(stage, scrollTop) {
+  if (!stage) return;
+
+  clubStoryPhoneScroll.suppressPhoneFeedScrollSync = true;
+  stage.scrollTop = scrollTop;
+  window.requestAnimationFrame(() => {
+    clubStoryPhoneScroll.suppressPhoneFeedScrollSync = false;
+  });
+}
+
+function syncSocialStageScrollFromStoryProgress(storyProgress) {
+  if (clubStoryPhoneScroll.socialTransitionRunning) return;
+
+  const stage = getClubStorySocialStage();
+  if (!stage || !clubStoryPhoneScroll.socialActive) return;
+
+  const maxScroll = Math.max(0, stage.scrollHeight - stage.clientHeight);
+  if (maxScroll <= 0) return;
+
+  const anchorProgress =
+    typeof clubStoryPhoneScroll.socialScrollAnchorProgress === "number"
+      ? clubStoryPhoneScroll.socialScrollAnchorProgress
+      : getStorySocialProgressThreshold() + 0.02;
+  const scrollRange = Math.max(0.001, 1 - anchorProgress);
+  const relativeProgress = Math.min(1, Math.max(0, (storyProgress - anchorProgress) / scrollRange));
+  const targetScrollTop = relativeProgress * maxScroll;
+
+  setClubStorySocialStageScrollTop(stage, targetScrollTop);
+}
+
+function beginClubStorySocialScrollAnchor(storyProgress = getCurrentStoryProgressFromPage()) {
+  clubStoryPhoneScroll.socialScrollAnchorProgress = storyProgress;
+
+  const stage = getClubStorySocialStage();
+  if (stage) {
+    stage.scrollTop = 0;
+  }
+}
+
+function getSectionTopInFeed(section, feed) {
+  if (!section || !feed || !feed.contains(section)) return 0;
+
+  let top = 0;
+
+  for (const child of feed.children) {
+    if (child === section) break;
+    top += child.offsetHeight;
+  }
+
+  return Math.max(0, top);
+}
+
+function getStoryProgressForStep(stepIndex) {
+  return getStoryProgressAnchorForStep(stepIndex);
+}
+
+function getStoryStepFromFeedScroll(feed) {
+  const sections = [...feed.querySelectorAll("[data-club-story-section]")];
+  if (!sections.length) return 0;
+
+  const scrollTop = feed.scrollTop;
+  let stepIndex = 0;
+
+  sections.forEach((section, index) => {
+    if (scrollTop >= getSectionTopInFeed(section, feed) - 4) {
+      stepIndex = index;
+    }
+  });
+
+  return stepIndex;
+}
+
+function scrollPhoneFeedToStep(stepIndex) {
+  if (stepIndex >= CLUB_STORY_SOCIAL_STEP_INDEX) {
+    runVideosToSocialTransition({ skipAnimation: prefersReducedMotion, animated: true, force: true });
+    return 0;
+  }
+
+  if (clubStoryPhoneScroll.socialActive) {
+    clubStoryPhoneScroll.pendingFeedStep = stepIndex;
+    runSocialToVideosTransition({ skipAnimation: prefersReducedMotion, animated: true, force: true });
+    return 0;
+  }
+
+  if (clubStoryPhoneScroll.socialTransitionRunning) {
+    return 0;
+  }
+
+  const feed = getClubStoryPhoneFeed();
+  const section = feed?.querySelector(`[data-club-story-section="${stepIndex}"]`);
+  if (!feed || !section) return 0;
+
+  const targetTop = getSectionTopInFeed(section, feed);
+  setClubStoryPhoneFeedScrollTop(feed, targetTop);
+  clubStoryPhoneScroll.syncStep?.(stepIndex);
+
+  return targetTop;
+}
+
+function syncPhoneFeedScrollFromStoryProgress(storyProgress) {
+  const feed = getClubStoryPhoneFeed();
+  if (!feed) return;
+
+  if (clubStoryPhoneScroll.socialTransitionRunning) {
+    return;
+  }
+
+  const socialThreshold = getStorySocialProgressThreshold();
+  const socialEnterProgress = socialThreshold + 0.02;
+  const socialExitProgress = socialThreshold - 0.08;
+
+  if (storyProgress >= socialEnterProgress) {
+    if (!clubStoryPhoneScroll.socialActive) {
+      runVideosToSocialTransition({ skipAnimation: prefersReducedMotion, animated: true });
+    } else {
+      clubStoryPhoneScroll.syncStep?.(CLUB_STORY_SOCIAL_STEP_INDEX);
+      syncSocialStageScrollFromStoryProgress(storyProgress);
+    }
+    return;
+  }
+
+  if (clubStoryPhoneScroll.socialActive && storyProgress < socialExitProgress) {
+    runSocialToVideosTransition({ skipAnimation: prefersReducedMotion, animated: true });
+    return;
+  }
+
+  if (isSocialTransitionLocked()) {
+    return;
+  }
+
+  const targetScrollTop = getFeedScrollTopForStoryProgress(feed, storyProgress);
+
+  setClubStoryPhoneFeedScrollTop(feed, targetScrollTop);
+  clubStoryPhoneScroll.syncStep?.(getStoryStepFromStoryProgress(storyProgress));
+}
+
+function destroyClubStoryPhoneFeedScroll() {
+  clubStoryPhoneScroll.observer?.disconnect();
+  clubStoryPhoneScroll.observer = null;
+
+  clubStoryPhoneScroll.boundFeed = null;
+  clubStoryPhoneScroll.boundSocialStage = null;
+}
+
+function initClubStoryPhoneFeedScroll() {
+  destroyClubStoryPhoneFeedScroll();
+
+  const feed = getClubStoryPhoneFeed();
+  if (!feed) return;
+
+  const sections = [...feed.querySelectorAll("[data-club-story-section]")];
+  if (!sections.length) return;
+
+  clubStoryPhoneScroll.observer = new IntersectionObserver(
+    (entries) => {
+      if (clubStoryPhoneScroll.suppressPhoneFeedScrollSync || !clubSelectorState.storyUnlocked) return;
+
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+      if (!visible) return;
+
+      const stepIndex = Number.parseInt(visible.target.dataset.clubStorySection, 10);
+      if (Number.isNaN(stepIndex)) return;
+
+      clubStoryPhoneScroll.syncStep?.(stepIndex);
+    },
+    {
+      root: feed,
+      threshold: [0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1],
+      rootMargin: "-10% 0px -58% 0px",
+    },
+  );
+
+  sections.forEach((section) => clubStoryPhoneScroll.observer.observe(section));
+
+  clubStoryPhoneScroll.boundFeed = feed;
+  clubStoryPhoneScroll.boundSocialStage = getClubStorySocialStage();
 }
 
 function getClubPrimaryColor(code) {
@@ -1554,6 +2301,8 @@ function bootClubSelectorStory() {
   let clubTimeline = null;
   let isClampingScroll = false;
 
+  const PHONE_BODY_HEIGHT_RATIO = 163.4 / 78;
+
   function getRelativeRect(element, container) {
     const elementRect = element.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
@@ -1566,10 +2315,42 @@ function bootClubSelectorStory() {
     };
   }
 
+  function getSharedPhoneTargetSize(target) {
+    if (!target) return { width: 0, height: 0 };
+
+    let width = target.offsetWidth;
+    let height = target.offsetHeight;
+
+    if (width < 1 && height > 0) {
+      width = height / PHONE_BODY_HEIGHT_RATIO;
+    }
+
+    if (height < 1 && width > 0) {
+      height = width * PHONE_BODY_HEIGHT_RATIO;
+    }
+
+    if (width < 1 || height < 1) {
+      const fallbackTarget = pickSpacer?.offsetWidth > 0 ? pickSpacer : target;
+      width = fallbackTarget.offsetWidth;
+      height = fallbackTarget.offsetHeight;
+
+      if (height < 1 && width > 0) {
+        height = width * PHONE_BODY_HEIGHT_RATIO;
+      }
+    }
+
+    return { width, height };
+  }
+
   function positionSharedPhoneAt(target) {
     if (!target) return;
 
     const rect = getRelativeRect(target, panel);
+    const size = getSharedPhoneTargetSize(target);
+
+    if (size.width > 0) rect.width = size.width;
+    if (size.height > 0) rect.height = size.height;
+
     if (window.gsap) {
       gsap.set(sharedPhone, rect);
     } else {
@@ -1618,26 +2399,29 @@ function bootClubSelectorStory() {
       const trigger = item.querySelector(".sl-club-story-stepper-trigger");
       trigger?.setAttribute("aria-current", isActive ? "step" : "false");
     });
-
-    if (clubSelectorState.storyUnlocked) {
-      renderClubStoryPhoneStep(stepIndex);
-    }
   }
+
+  clubStoryPhoneScroll.syncStep = setStoryStep;
 
   function scrollToStoryStep(stepIndex) {
     if (!clubSelectorState.storyUnlocked) return;
 
     const step = Math.max(0, Math.min(STORY_STEP_COUNT - 1, stepIndex));
+    scrollPhoneFeedToStep(step);
+    setStoryStep(step);
+
     const trigger = clubScrollTrigger || ScrollTrigger.getById("club-selector-scroll");
 
-    if (trigger && window.gsap && !prefersReducedMotion) {
-      const storyProgress = (step + 0.5) / STORY_STEP_COUNT;
-      const totalProgress = PICK_PROGRESS_CAP + storyProgress * (1 - PICK_PROGRESS_CAP);
-      trigger.scroll(trigger.start + (trigger.end - trigger.start) * totalProgress);
-      return;
-    }
+    if (!trigger || !window.gsap || prefersReducedMotion) return;
 
-    setStoryStep(step);
+    clubStoryPhoneScroll.suppressPhoneFeedScrollSync = true;
+    const storyProgress = getStoryProgressForStep(step);
+    const totalProgress = PICK_PROGRESS_CAP + storyProgress * (1 - PICK_PROGRESS_CAP);
+    trigger.scroll(trigger.start + (trigger.end - trigger.start) * totalProgress);
+
+    window.setTimeout(() => {
+      clubStoryPhoneScroll.suppressPhoneFeedScrollSync = false;
+    }, prefersReducedMotion ? 0 : 400);
   }
 
   function bootClubStoryStepper() {
@@ -1696,7 +2480,8 @@ function bootClubSelectorStory() {
       if (storyHeadline) storyHeadline.textContent = "";
       applyClubPrimaryColor(null);
       setStoryStep(0);
-      renderClubStoryPhoneStep(0);
+      resetClubStoryPhoneScrollState();
+      renderClubStoryPhoneFeed(clubSelectorState.selectedCode, { preserveScroll: false });
 
       const trigger = ScrollTrigger.getById("club-selector-scroll");
       if (trigger) {
@@ -1773,6 +2558,7 @@ function bootClubSelectorStory() {
     setPhoneScreenMode("story");
     positionSharedPhoneAtStory();
     setStoryStep(clubSelectorState.currentStoryStep);
+    initClubStoryPhoneFeedScroll();
   }
 
   function clampToPickPhase(self) {
@@ -1832,11 +2618,7 @@ function bootClubSelectorStory() {
           if (!clubSelectorState.storyUnlocked) return;
 
           const storyProgress = Math.max(0, (self.progress - PICK_PROGRESS_CAP) / (1 - PICK_PROGRESS_CAP));
-          const stepIndex = Math.min(
-            STORY_STEP_COUNT - 1,
-            Math.max(0, Math.floor(storyProgress * STORY_STEP_COUNT)),
-          );
-          setStoryStep(stepIndex);
+          syncPhoneFeedScrollFromStoryProgress(storyProgress);
         },
         onLeaveBack() {
           if (clubSelectorState.storyUnlocked) {
@@ -1847,6 +2629,8 @@ function bootClubSelectorStory() {
     });
 
     clubScrollTrigger = clubTimeline.scrollTrigger;
+    clubStoryPhoneScroll.getScrollTrigger = () => clubScrollTrigger;
+    clubStoryPhoneScroll.getPickProgressCap = () => PICK_PROGRESS_CAP;
 
     clubTimeline.to({}, { duration: PICK_HOLD });
 
@@ -1877,7 +2661,7 @@ function bootClubSelectorStory() {
 
       storyPhase.hidden = false;
       setPhoneScreenMode("story");
-      renderClubStoryPhoneStep(0);
+      renderClubStoryPhoneFeed(clubSelectorState.selectedCode, { preserveScroll: false });
       positionSharedPhoneAtStory();
       finishStoryTransition();
       return;
@@ -1887,6 +2671,9 @@ function bootClubSelectorStory() {
     gsap.set(storyPhase, { opacity: 0, visibility: "hidden", pointerEvents: "none" });
 
     const storyRect = getRelativeRect(storySlot, panel);
+    const storySize = getSharedPhoneTargetSize(storySlot);
+    if (storySize.width > 0) storyRect.width = storySize.width;
+    if (storySize.height > 0) storyRect.height = storySize.height;
 
     gsap
       .timeline({
@@ -1898,6 +2685,8 @@ function bootClubSelectorStory() {
         {
           left: storyRect.left,
           top: storyRect.top,
+          width: storyRect.width,
+          height: storyRect.height,
           duration: PHONE_SLIDE_DURATION,
           ease: "power2.inOut",
         },
@@ -1905,7 +2694,7 @@ function bootClubSelectorStory() {
       )
       .call(() => {
         setPhoneScreenMode("story");
-        renderClubStoryPhoneStep(0);
+        renderClubStoryPhoneFeed(clubSelectorState.selectedCode, { preserveScroll: false });
       })
       .set(storyPhase, { visibility: "visible", pointerEvents: "auto" })
       .to(storyPhase, { opacity: 1, duration: 0.2, ease: "power1.inOut" }, "<")

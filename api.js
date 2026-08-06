@@ -410,10 +410,60 @@ async function fetchVideosForClub(clubCode, options = {}) {
   return toVideosFeed(items);
 }
 
+function extractTweetEmbedBlockquote(embedCode) {
+  if (!embedCode) return "";
+
+  const match = String(embedCode).match(/<blockquote[\s\S]*?<\/blockquote>/i);
+  return match ? match[0] : "";
+}
+
+function extractTweetStatusUrl(item) {
+  const sources = [item.meta?._stm_embed_code, item.content?.rendered, item.link];
+
+  for (const source of sources) {
+    const match = String(source || "").match(/https?:\/\/(?:twitter\.com|x\.com)\/[A-Za-z0-9_]+\/status\/(\d+)/i);
+    if (match) {
+      return match[0].split("?")[0];
+    }
+  }
+
+  return "";
+}
+
+function normalizeTweetEmbedBlockquote(blockquote, { theme = "dark", width = 310 } = {}) {
+  if (!blockquote) return "";
+
+  let html = blockquote
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/\sdata-theme="[^"]*"/gi, "")
+    .replace(/\sdata-width="[^"]*"/gi, "");
+
+  html = html.replace(
+    /<blockquote/i,
+    `<blockquote data-theme="${theme}" data-dnt="true" data-width="${width}"`,
+  );
+
+  return html;
+}
+
+function buildTweetEmbedMarkup(item) {
+  const blockquote = extractTweetEmbedBlockquote(item.meta?._stm_embed_code);
+  if (blockquote) {
+    return normalizeTweetEmbedBlockquote(blockquote);
+  }
+
+  const tweetUrl = extractTweetStatusUrl(item);
+  if (!tweetUrl) return "";
+
+  return `<blockquote class="twitter-tweet" data-theme="dark" data-dnt="true" data-width="310"><a href="${escapeHtml(tweetUrl)}"></a></blockquote>`;
+}
+
 function parseTweetItem(item) {
   return {
     id: item.id,
     html: item.content?.rendered || "",
+    embedHtml: buildTweetEmbedMarkup(item),
+    tweetUrl: extractTweetStatusUrl(item),
   };
 }
 
@@ -449,6 +499,8 @@ function toSocialFeed(items) {
     tweets: items.map((item) => ({
       id: String(item.id),
       html: item.html,
+      embedHtml: item.embedHtml,
+      tweetUrl: item.tweetUrl,
     })),
   };
 }

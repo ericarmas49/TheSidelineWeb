@@ -10,11 +10,18 @@
   --gold: #f5ce35;
   --blue: #0755ff;
   --phone-edge: #b8b8bc;
-  /* iPhone 16 Pro Max body: 77.6mm x 163.4mm; screen 1320 x 2868 */
+  /* iPhone 17 Pro Max — body 78.0 × 163.4 mm; display 1320 × 2868 px (19.5:9) */
   --phone-body-aspect: 78 / 163.4;
-  --phone-height-ratio: 2.095;
+  /* Unitless scalar — do not store as `163.4 / 78` or `/ var(--phone-height-ratio)` expands to double division. */
+  --phone-height-ratio: 2.094871794871795;
+  --phone-width-ratio: 0.477357406364749;
+  --phone-screen-aspect: 1320 / 2868;
   --phone-display-width: 400px;
-  --phone-display-height: 838px;
+  --phone-display-height: calc(var(--phone-display-width) * 163.4 / 78);
+  --phone-shell-border-width: 3.5px;
+  --phone-safe-top: 7.5%;
+  --phone-safe-bottom: 5.5%;
+  --phone-island-width: 29%;
   --max: 1400px;
   --club-primary: #212121;
 
@@ -73,6 +80,10 @@ a {
   display: inline-flex;
   align-items: center;
   line-height: 0;
+}
+
+#sl-brand-link {
+  margin-left: -50px;
 }
 
 .sl-brand-logo {
@@ -368,27 +379,35 @@ section[data-section] {
 
 .phone-shell {
   position: relative;
+  container-type: inline-size;
   width: min(100%, var(--phone-display-width));
   aspect-ratio: var(--phone-body-aspect);
-  border: 3.5px solid var(--phone-edge);
-  border-radius: clamp(46px, 13cqi, 58px);
+  --phone-shell-radius: clamp(46px, 13cqi, 58px);
+  --phone-screen-radius: clamp(38px, 10.5cqi, 48px);
+  --phone-bezel-block-start: 2.75cqi;
+  --phone-bezel-block-end: 2.25cqi;
+  --phone-bezel-inline: 1.75cqi;
+  --phone-island-top: 3.25cqi;
+  --phone-island-height: clamp(18px, 5.8cqi, 27px);
+  border: var(--phone-shell-border-width) solid var(--phone-edge);
+  border-radius: var(--phone-shell-radius);
   background: linear-gradient(160deg, #242424 0%, #0d0d0d 52%, #181818 100%);
   box-shadow:
     0 24px 80px rgba(0, 0, 0, 0.55),
     inset 0 0 0 1px rgba(255, 255, 255, 0.1);
-  padding: 11px 7px 9px;
+  padding: var(--phone-bezel-block-start) var(--phone-bezel-inline) var(--phone-bezel-block-end);
 }
 
 .phone-dynamic-island,
 .phone-notch {
   position: absolute;
-  top: 13px;
+  top: var(--phone-island-top);
   left: 50%;
   z-index: 3;
-  width: 29%;
+  width: var(--phone-island-width);
   max-width: 96px;
   min-width: 68px;
-  height: clamp(21px, 5.8cqi, 27px);
+  height: clamp(18px, var(--phone-island-height), 27px);
   border-radius: 999px;
   background: #000;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
@@ -397,42 +416,88 @@ section[data-section] {
 
 .phone-screen {
   position: relative;
+  container-type: size;
   height: 100%;
   overflow: hidden;
-  border-radius: clamp(38px, 10.5cqi, 48px);
+  border-radius: var(--phone-screen-radius);
   background: #2d2d2d;
   color: white;
   font-family: var(--serif);
 }
 
+.phone-screen,
+.sl-club-selector-pick-screen,
+.sl-club-selector-story-phone-screen {
+  --phone-status-font-size: 3.25cqi;
+  --phone-status-icon-gap: 1.25cqi;
+  --phone-status-signal-width: 4.25cqi;
+  --phone-status-signal-height: 2.75cqi;
+  --phone-status-wifi-width: 3.75cqi;
+  --phone-status-wifi-height: 2.75cqi;
+  --phone-status-battery-width: 6.25cqi;
+  --phone-status-battery-height: 3cqi;
+  --phone-status-time-inset: 0.5cqi;
+}
+
 .sl-hero-phone-screen {
-  container-type: inline-size;
-  background: #111;
+  container-type: size;
+  background: #212121;
+}
+
+.phone-shell.sl-phone-shell.sl-hero-phone-shell {
+  padding: 4px;
+}
+
+.sl-hero-phone-shell .sl-phone-status-bar {
+  top: 10px;
+  height: 40px;
 }
 
 .sl-hero-phone-screen-img {
+  position: absolute;
+  top: var(--phone-safe-top);
+  right: 0;
+  bottom: var(--phone-safe-bottom);
+  left: 0;
   display: block;
   width: 100%;
-  height: 100%;
+  height: calc(100% - var(--phone-safe-top) - var(--phone-safe-bottom));
   object-fit: cover;
-  object-position: center;
+  object-position: center top;
 }
 
 .sl-hero-phone .sl-hero-phone-screen-img {
+  top: 5%;
+  height: 92%;
+  bottom: auto;
+  object-fit: contain;
+}
+
+.sl-features-stage .sl-hero-phone-screen-img,
+.feature-section.split.sl-feature-panel .sl-hero-phone-screen-img,
+#sl-filters .sl-feature-panel .sl-hero-phone-screen-img {
+  top: 6%;
+  height: 93%;
+  bottom: auto;
   object-fit: contain;
 }
 
 .sl-phone-status-bar {
   position: absolute;
-  inset: 0 0 auto;
-  z-index: 1;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 2;
   display: grid;
-  grid-template-columns: 1fr min(29%, 96px) 1fr;
+  width: 90%;
+  height: var(--phone-safe-top);
+  margin: 0 auto;
+  grid-template-columns: 1fr min(var(--phone-island-width), 96px) 1fr;
   align-items: center;
-  padding: 10px 14px 0;
+  padding: 0 3.5cqi;
   color: #fff;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
-  font-size: clamp(10px, 2.8cqi, 13px);
+  font-size: var(--phone-status-font-size);
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1;
@@ -441,7 +506,7 @@ section[data-section] {
 
 .sl-phone-status-time {
   grid-column: 1;
-  padding-left: 2px;
+  padding-left: var(--phone-status-time-inset);
 }
 
 .sl-phone-status-icons {
@@ -449,7 +514,7 @@ section[data-section] {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 5px;
+  gap: var(--phone-status-icon-gap);
 }
 
 .sl-phone-status-icon {
@@ -458,18 +523,18 @@ section[data-section] {
 }
 
 .sl-phone-status-signal {
-  width: 17px;
-  height: 11px;
+  width: var(--phone-status-signal-width);
+  height: var(--phone-status-signal-height);
 }
 
 .sl-phone-status-wifi {
-  width: 15px;
-  height: 11px;
+  width: var(--phone-status-wifi-width);
+  height: var(--phone-status-wifi-height);
 }
 
 .sl-phone-status-battery {
-  width: 25px;
-  height: 12px;
+  width: var(--phone-status-battery-width);
+  height: var(--phone-status-battery-height);
 }
 
 .app-topbar {
@@ -641,7 +706,7 @@ h2.sl-club-selector-title {
   --club-selector-phone-width: min(
     100%,
     var(--club-selector-phone-max-width),
-    calc(var(--club-selector-phone-max-height) * 78 / 163.4)
+    calc(var(--club-selector-phone-max-height) * var(--phone-width-ratio))
   );
 
   position: relative;
@@ -714,22 +779,28 @@ h2.sl-club-selector-title {
 }
 
 .sl-club-selector-pick-screen {
+  position: relative;
   display: flex;
   flex-direction: column;
-  container-type: inline-size;
+  container-type: size;
   background: #212121;
   color: #fff;
   overflow: hidden;
 }
 
 .sl-club-selector-pick-screen .sl-app-scaler {
-  flex: 1;
+  position: absolute;
+  top: var(--phone-safe-top);
+  right: 0;
+  bottom: var(--phone-safe-bottom);
+  left: 0;
+  flex: none;
   min-height: 0;
 }
 
 .sl-club-selector-phase-pick .sl-app-onboarding,
 .sl-club-selector-screen-pick .sl-app-onboarding {
-  padding-top: 32px;
+  padding-top: 0;
 }
 
 .sl-club-selector-phase-pick .sl-app-step-header,
@@ -1008,7 +1079,7 @@ h2.sl-club-selector-title {
   left: 0;
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: stretch;
   box-sizing: border-box;
   width: var(--club-selector-phone-width);
   max-height: var(--club-selector-phone-max-height);
@@ -1020,12 +1091,23 @@ h2.sl-club-selector-title {
   pointer-events: auto;
 }
 
+.sl-club-selector-shared-phone:not(.is-interactive),
+.sl-club-selector-shared-phone:not(.is-interactive) * {
+  pointer-events: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .sl-club-selector-shared-phone-shell.phone-shell {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  aspect-ratio: auto;
+  box-sizing: border-box;
   width: 100%;
   height: 100%;
+  min-height: 0;
+  padding: 4px;
+  aspect-ratio: auto;
   max-height: none;
 }
 
@@ -1049,8 +1131,7 @@ h2.sl-club-selector-title {
   min-height: 0;
 }
 
-.sl-club-selector-screen-pick .sl-app-scaler,
-.sl-club-selector-screen-story .sl-club-story-app-scaler {
+.sl-club-selector-screen-pick .sl-app-scaler {
   flex: 1;
   min-height: 0;
 }
@@ -1062,8 +1143,9 @@ h2.sl-club-selector-title {
 }
 
 .sl-club-selector-screen-story .sl-club-selector-story-phone-screen {
+  position: relative;
   display: flex;
-  flex: 1;
+  flex: 1 1 auto;
   flex-direction: column;
   width: 100%;
   min-height: 0;
@@ -1193,11 +1275,34 @@ h2.sl-club-selector-title {
 }
 
 .sl-club-story-phone-screen {
+  position: relative;
   display: flex;
   flex-direction: column;
-  container-type: inline-size;
+  container-type: size;
   background: #212121;
   overflow: hidden;
+}
+
+.sl-club-selector-story-phone-screen {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sl-club-story-phone-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.sl-club-selector-story-phone-screen .sl-club-story-app-scaler {
+  position: absolute;
+  top: var(--phone-safe-top);
+  right: 0;
+  bottom: var(--phone-safe-bottom);
+  left: 0;
+  flex: none;
 }
 
 .sl-club-story-app-scaler {
@@ -1226,6 +1331,50 @@ h2.sl-club-selector-title {
   height: 100%;
   flex-direction: column;
   background: #212121;
+}
+
+.sl-app-home-content {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.sl-app-home-social-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #212121;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.sl-app-home-social-stage:not([hidden]) {
+  visibility: visible;
+}
+
+.sl-app-home-social-stage.is-visible {
+  opacity: 1;
+}
+
+.sl-app-home-social-stage.is-fading-out,
+.sl-app-home-social-stage.is-entering {
+  transition: opacity 1s ease;
+}
+
+.sl-app-home-social-stage.is-fading-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sl-app-home-social-stage.is-entering {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sl-app-home-social-stage.is-entering.is-visible {
+  opacity: 1;
 }
 
 .sl-app-home-chrome {
@@ -1334,6 +1483,25 @@ h2.sl-club-selector-title {
   font-weight: 400;
   line-height: 1;
   text-transform: uppercase;
+  transition: background-color 0.22s ease, color 0.22s ease, transform 0.22s ease;
+}
+
+.sl-app-home-toggle-container.is-switching .sl-app-home-toggle-pill.is-active {
+  animation: sl-home-toggle-pill-activate 0.28s ease;
+}
+
+@keyframes sl-home-toggle-pill-activate {
+  0% {
+    transform: scale(0.94);
+  }
+
+  60% {
+    transform: scale(1.03);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .sl-app-home-toggle-pill.is-active {
@@ -1358,10 +1526,32 @@ h2.sl-club-selector-title {
 .sl-app-home-feed {
   flex: 1;
   min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
   background: #212121;
-  -webkit-overflow-scrolling: touch;
+  opacity: 1;
+}
+
+.sl-app-home-feed.is-fading-out,
+.sl-app-home-feed.is-fading-in {
+  transition: opacity 1s ease;
+}
+
+.sl-app-home-feed.is-fading-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sl-app-home-feed.is-fading-in {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sl-app-home-feed.is-fading-in.is-fading-in-active {
+  opacity: 1;
+}
+
+.sl-club-story-feed-section {
+  scroll-margin-top: 0;
 }
 
 .sl-app-top-stories {
@@ -1563,6 +1753,14 @@ h2.sl-club-selector-title {
   text-transform: uppercase;
 }
 
+#content-section-recent-episodes {
+  padding-top: 20px;
+}
+
+#recent-episodes-title {
+  padding-bottom: 20px;
+}
+
 .sl-app-podcasts-list {
   display: grid;
   gap: 0;
@@ -1722,10 +1920,21 @@ h2.sl-club-selector-title {
 }
 
 .sl-app-videos-feed {
-  padding: 20px;
+  padding: 0 20px 20px;
   border-top: 1px solid #666666;
   border-bottom: 1px solid #666666;
   background: #303030;
+}
+
+.sl-app-videos-section-title {
+  margin: 0 0 4px;
+  padding-top: 20px;
+  color: #f9fafb;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-transform: uppercase;
 }
 
 .sl-app-videos-feed--loading {
@@ -1848,23 +2057,54 @@ h2.sl-club-selector-title {
 }
 
 .sl-club-story-feed-img--social {
-  overflow-y: auto;
-  padding: 12px 16px 20px;
+  padding: 20px;
   background: #212121;
-  -webkit-overflow-scrolling: touch;
 }
 
-.sl-club-story-feed-img--loading {
+.sl-app-social-section-title {
+  margin: 0 0 4px;
+  padding-bottom: 20px;
+  color: #f9fafb;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.sl-club-story-feed-img--social.sl-club-story-feed-img--loading {
   display: flex;
+  flex-direction: column;
+  min-height: 220px;
+}
+
+.sl-club-story-feed-img--loading .sl-app-top-stories-loading {
+  display: flex;
+  flex: 1;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  min-height: 220px;
+  min-height: 160px;
 }
 
 .sl-club-story-tweet + .sl-club-story-tweet {
   margin-top: 14px;
   padding-top: 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.sl-club-story-tweet-embed {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.sl-club-story-tweet-embed .twitter-tweet {
+  margin: 0 auto !important;
+}
+
+.sl-club-story-tweet-embed iframe {
+  max-width: 100% !important;
 }
 
 .sl-club-story-tweet-body {
@@ -1910,8 +2150,8 @@ h2.sl-club-selector-title {
 }
 
 .sl-club-selector-phase-pick .sl-club-selector-phone-inner > .phone-shell {
-  width: min(100%, 400px, calc(78vh * 78 / 163.4));
-  max-width: 400px;
+  width: min(100%, var(--phone-display-width), calc(78vh * var(--phone-width-ratio)));
+  max-width: var(--phone-display-width);
   height: auto;
   max-height: 78vh;
   aspect-ratio: var(--phone-body-aspect);
@@ -1956,7 +2196,7 @@ h2.sl-club-selector-title {
   display: flex;
   height: 100%;
   flex-direction: column;
-  padding-top: 36px;
+  padding-top: 0;
   background: #212121;
 }
 
@@ -2360,7 +2600,8 @@ p.sl-feature-body {
 
 .feature-section.split .phone-shell {
   justify-self: center;
-  width: min(100%, 332px);
+  width: min(100%, var(--phone-display-width));
+  aspect-ratio: var(--phone-body-aspect);
 }
 
 .feature-section.reverse {
@@ -2369,7 +2610,7 @@ p.sl-feature-body {
 
 .sl-feature-panel-wrap {
   width: 100%;
-  background: var(--black);
+  background: #303030;
 }
 
 #sl-personalization,
@@ -2389,6 +2630,18 @@ p.sl-feature-body {
   min-height: min(760px, 100dvh);
   margin-inline: auto;
   padding: clamp(56px, 8vh, 96px) max(34px, calc((100vw - var(--max)) / 2));
+  background: #303030;
+}
+
+@media (min-width: 981px) {
+  .feature-section.split.sl-feature-panel {
+    padding-top: 0;
+  }
+
+  #sl-filters .feature-section.split.sl-feature-panel {
+    padding-top: 50px;
+    padding-bottom: 120px;
+  }
 }
 
 .sl-feature-panel .feature-text {
@@ -2416,32 +2669,19 @@ p.sl-feature-body {
 #sl-features-story .sl-features-phone-wrap .phone-shell,
 #sl-personalization .sl-feature-panel-visual .phone-shell,
 #sl-filters .sl-feature-panel-visual .phone-shell {
-  height: var(--features-phone-display-height);
   width: min(
+    100%,
     var(--features-phone-ref-width),
-    calc(var(--features-phone-display-height) / var(--phone-height-ratio))
+    calc(var(--features-phone-display-height) * var(--phone-width-ratio))
   );
+  height: auto;
   max-width: var(--features-phone-ref-width);
-  max-height: min(100%, var(--features-phone-ref-height));
+  max-height: var(--features-phone-display-height);
   margin-inline: auto;
+  padding: 4px;
   aspect-ratio: var(--phone-body-aspect);
   flex-shrink: 0;
   box-sizing: border-box;
-}
-
-#sl-features-story .sl-features-stage .sl-phone-status-bar,
-#sl-personalization .sl-phone-status-bar,
-#sl-filters .sl-phone-status-bar {
-  top: 10px;
-}
-
-#sl-features-story .sl-features-stage .sl-hero-phone-screen-img,
-#sl-personalization .sl-hero-phone-screen-img,
-#sl-filters .sl-hero-phone-screen-img {
-  position: relative;
-  top: 40px;
-  width: 103%;
-  height: 94%;
 }
 
 .sl-feature-text.is-content-enter-pending {
@@ -2482,8 +2722,15 @@ p.sl-feature-body {
     transform 1.1s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.sl-features-story-wrap {
+.sl-features-story-wrap,
+#sl-features-story {
   width: 100%;
+  background: #303030;
+}
+
+.sl-features-story,
+.feature-section.split.sl-feature-panel {
+  background: #303030;
 }
 
 .sl-features-story.feature-section,
@@ -2500,7 +2747,8 @@ p.sl-feature-body {
   max-width: var(--max);
   height: 100vh;
   margin-inline: auto;
-  padding: clamp(32px, 5vh, 78px) 0;
+  padding: clamp(32px, 5vh, 78px) 0 clamp(16px, 2.5vh, 39px);
+  background: #303030;
 }
 
 #sl-features-story .feature-phone {
@@ -2795,15 +3043,15 @@ p.sl-benefit-body {
   inset: -10%;
   background:
     linear-gradient(180deg, rgba(238, 241, 238, 0.15), rgba(238, 241, 238, 0.35)),
-    url("screenshots/cta-stadium-placeholder.jpg") center / cover no-repeat;
-  filter: blur(12px);
+    url("assets/app/Pitch-Image-Grass-scaled.jpg") center / cover no-repeat;
+  filter: none;
   transform: scale(1.06);
 }
 
 .sl-cta-home-bg-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.68);
+  background: transparent;
 }
 
 .sl-cta-home-inner {
@@ -2888,7 +3136,7 @@ h2.sl-cta-home-title {
 }
 
 .sl-site-footer {
-  padding-top: 200px;
+  padding-top: 60px;
 }
 
 .sl-footer-brand {
@@ -2952,6 +3200,15 @@ h2.sl-cta-home-title {
   color: rgba(255, 255, 255, 0.72);
   font-family: var(--font-body);
   font-size: 0.82rem;
+}
+
+.sl-footer-disclaimer {
+  max-width: 42rem;
+  margin: 10px 0 0;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  line-height: 1.45;
 }
 
 body.sl-contact-modal-open {
@@ -3128,12 +3385,12 @@ body.sl-contact-modal-open {
 
 @media (max-width: 980px) {
   :root {
-    /* iPhone 16 Pro Max body: 77.6mm x 163.4mm */
+    /* iPhone 17 Pro Max body: 78.0 × 163.4 mm */
     --feature-phone-mobile-max-width: 70vw;
     --feature-phone-mobile-max-height: 45dvh;
     --feature-phone-mobile-width: min(
       var(--feature-phone-mobile-max-width),
-      calc(var(--feature-phone-mobile-max-height) / var(--phone-height-ratio))
+      calc(var(--feature-phone-mobile-max-height) * var(--phone-width-ratio))
     );
   }
 
@@ -3145,6 +3402,22 @@ body.sl-contact-modal-open {
   .sl-header-inner {
     width: 100%;
     max-width: 100%;
+  }
+
+  #sl-brand-link {
+    margin-left: -20px;
+  }
+
+  .sl-club-selector-pick-screen .sl-app-scaler,
+  .sl-club-selector-screen-pick .sl-app-scaler {
+    justify-content: flex-start;
+    align-items: flex-start;
+  }
+
+  #sl-club-selector-app-viewport {
+    width: 390px;
+    max-width: none;
+    transform-origin: top left;
   }
 
   .download-label {
@@ -3237,34 +3510,31 @@ body.sl-contact-modal-open {
 
   .phone-shell {
     width: 100%;
-    max-width: 70vw;
+    max-width: var(--feature-phone-mobile-max-width);
     height: auto;
-    aspect-ratio: 1 / 2.1;
-  }
-
-  .sl-club-selector-shared-phone-shell.phone-shell {
-    aspect-ratio: 1 / 2.1;
+    aspect-ratio: var(--phone-body-aspect);
   }
 
   .sl-club-selector-phone-shell {
-    width: min(100%, 70vw);
-    max-width: 70vw;
+    width: min(100%, var(--feature-phone-mobile-max-width));
+    max-width: var(--feature-phone-mobile-max-width);
     max-height: none;
+    aspect-ratio: var(--phone-body-aspect);
   }
 
   .sl-club-selector-panel {
-    --club-selector-phone-max-width: 70vw;
-    --club-selector-phone-max-height: calc(70vw * 2.1);
-    --club-selector-phone-width: min(100%, 70vw);
+    --club-selector-phone-max-width: var(--feature-phone-mobile-max-width);
+    --club-selector-phone-max-height: calc(var(--feature-phone-mobile-max-width) * var(--phone-height-ratio));
+    --club-selector-phone-width: min(100%, var(--feature-phone-mobile-max-width));
   }
 
   .sl-club-selector-pick-phone-spacer,
   .sl-club-selector-story-phone-slot-marker,
   .sl-club-selector-shared-phone {
-    width: min(100%, 70vw);
-    max-width: 70vw;
+    width: min(100%, var(--feature-phone-mobile-max-width));
+    max-width: var(--feature-phone-mobile-max-width);
     max-height: none;
-    aspect-ratio: 1 / 2.1;
+    aspect-ratio: var(--phone-body-aspect);
   }
 
   .hero,
@@ -3285,7 +3555,7 @@ body.sl-contact-modal-open {
     min-height: 100dvh;
     flex-direction: column;
     padding: clamp(24px, 4vh, 40px) clamp(20px, 5vw, 34px)
-      clamp(20px, 3vh, 32px);
+      clamp(10px, 1.5vh, 16px);
   }
 
   .sl-features-story .sl-feature-copy {
@@ -3306,22 +3576,22 @@ body.sl-contact-modal-open {
     flex: 1 1 auto;
     flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    gap: clamp(16px, 3vh, 24px);
+    justify-content: flex-start;
+    gap: clamp(20px, 4vh, 32px);
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .sl-features-story .sl-features-phone-wrap {
     display: flex;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     width: 100%;
     min-height: 0;
     height: auto;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .sl-features-story .sl-features-phone-wrap .sl-features-step {
@@ -3332,24 +3602,25 @@ body.sl-contact-modal-open {
     justify-content: center;
   }
 
+  .sl-feature-panel-visual .phone-shell.feature-phone,
+  .sl-features-phone-wrap .phone-shell,
   #sl-features-story .sl-features-phone-wrap .phone-shell,
   #sl-personalization .sl-feature-panel-visual .phone-shell,
   #sl-filters .sl-feature-panel-visual .phone-shell {
-    --features-phone-display-height: auto;
+    --features-phone-display-height: var(--feature-phone-mobile-max-height);
 
-    width: var(--feature-phone-mobile-width);
+    width: min(100%, var(--feature-phone-mobile-width));
     max-width: var(--feature-phone-mobile-max-width);
     max-height: var(--feature-phone-mobile-max-height);
     height: auto;
     aspect-ratio: var(--phone-body-aspect);
-    flex: 0 0 auto;
+    flex-shrink: 0;
     margin-inline: auto;
-    padding: 0;
-    border-radius: clamp(14px, 12cqi, 20px);
   }
 
   #sl-features-story .sl-features-phone-wrap .phone-shell {
-    border: 2.5px solid #a1a1a6;
+    border: var(--phone-shell-border-width) solid #a1a1a6;
+    border-radius: var(--phone-shell-radius);
     background: linear-gradient(165deg, #f2f2f4 0%, #c6c6cc 42%, #e4e4e8 100%);
     box-shadow:
       0 20px 60px rgba(0, 0, 0, 0.4),
@@ -3359,33 +3630,30 @@ body.sl-contact-modal-open {
   #sl-features-story .sl-features-phone-wrap .phone-screen,
   #sl-personalization .sl-feature-panel-visual .phone-screen,
   #sl-filters .sl-feature-panel-visual .phone-screen {
-    border-radius: clamp(12px, 10cqi, 18px);
+    border-radius: var(--phone-screen-radius);
   }
 
-  #sl-features-story .sl-features-stage .sl-hero-phone-screen-img,
-  #sl-personalization .sl-hero-phone-screen-img,
-  #sl-filters .sl-hero-phone-screen-img {
-    top: clamp(18px, 8cqi, 40px);
-    width: 103%;
-    height: 94%;
+  #sl-personalization .feature-section .phone-shell.feature-phone.sl-phone-shell.sl-feature-phone,
+  #sl-filters .phone-shell.feature-phone.sl-phone-shell.sl-feature-phone,
+  #sl-features-story .phone-shell.feature-phone.sl-phone-shell.sl-feature-phone,
+  .phone-shell.feature-phone.sl-phone-shell.sl-feature-phone.is-phone-enter-from-right,
+  .phone-shell.feature-phone.sl-phone-shell.sl-feature-phone.is-phone-enter-from-left {
+    width: 65%;
+    max-height: 100%;
+    border-radius: 30px;
   }
 
-  #sl-features-story .sl-features-stage .sl-phone-status-bar,
-  #sl-personalization .sl-phone-status-bar,
-  #sl-filters .sl-phone-status-bar {
-    top: -5px;
+  #sl-features-story .sl-features-phone-wrap .phone-shell.feature-phone.sl-phone-shell.sl-feature-phone,
+  .sl-features-story .phone-shell.feature-phone.sl-phone-shell.sl-feature-phone,
+  .sl-features-story .phone-shell.feature-phone.sl-phone-shell.sl-feature-phone.is-phone-enter-from-left {
+    padding: 0;
   }
 
-  .sl-phone-status-bar {
-    font-size: clamp(7px, 2.8cqi, 8px);
-  }
-
-  .sl-phone-status-signal {
-    width: 11px;
-  }
-
-  .sl-phone-status-battery {
-    width: 17px;
+  .phone-screen.sl-phone-screen.sl-feature-phone-screen.sl-hero-phone-screen,
+  #sl-features-story .phone-screen.sl-phone-screen.sl-feature-phone-screen.sl-hero-phone-screen,
+  #sl-personalization .phone-screen.sl-phone-screen.sl-feature-phone-screen.sl-hero-phone-screen,
+  #sl-filters .phone-screen.sl-phone-screen.sl-feature-phone-screen.sl-hero-phone-screen {
+    border-radius: 25px;
   }
 
   .phone-dynamic-island,
@@ -3426,7 +3694,12 @@ body.sl-contact-modal-open {
   .sl-feature-panel.feature-section.split {
     width: 100%;
     max-width: 100%;
+    padding-top: 20px;
     padding-inline: clamp(20px, 5vw, 34px);
+  }
+
+  #sl-personalization .sl-feature-panel.feature-section.split {
+    padding-top: 10px;
   }
 
   .sl-features-stage {
@@ -3512,11 +3785,11 @@ body.sl-contact-modal-open {
   .sl-hero-phone-inner > .phone-shell,
   .sl-hero-phone-shell,
   #sl-hero .phone-shell.sl-phone-shell.sl-hero-phone-shell {
-    width: 90vw;
-    max-width: 400px;
+    width: min(90vw, var(--phone-display-width));
+    max-width: var(--phone-display-width);
     height: auto;
     max-height: none;
-    aspect-ratio: 1 / 2.1;
+    aspect-ratio: var(--phone-body-aspect);
     flex-shrink: 1;
   }
 
