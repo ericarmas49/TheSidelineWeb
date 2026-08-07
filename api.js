@@ -1,6 +1,5 @@
 const WP_API = {
-  baseUrl: "/api/wp",
-  wpDirectBase: "https://circleblox.wpengine.com/wp-json/wp/v2",
+  baseUrl: "https://circleblox.wpengine.com/wp-json/wp/v2",
   perPage: 10,
 };
 
@@ -85,7 +84,7 @@ async function getPublicationTagExclude(tagId) {
   return map[String(tagId)] || [];
 }
 
-function buildWpProxyUrl(endpoint, params) {
+function buildWpApiUrl(endpoint, params) {
   const query = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
@@ -97,7 +96,7 @@ function buildWpProxyUrl(endpoint, params) {
 }
 
 async function wpGet(endpoint, params) {
-  const response = await fetch(buildWpProxyUrl(endpoint, params));
+  const response = await fetch(buildWpApiUrl(endpoint, params));
 
   if (!response.ok) {
     throw new Error(`WordPress request failed (${response.status})`);
