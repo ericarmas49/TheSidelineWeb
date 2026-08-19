@@ -38,109 +38,6 @@ function bootCtaLogoGrid() {
   grid.innerHTML = buildCtaLogoGridMarkup();
 }
 
-function observeFeatureEntrance(target, onReveal, delayMs = 400) {
-  if (!target) return;
-
-  if (!("IntersectionObserver" in window)) {
-    onReveal();
-    return;
-  }
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting || entry.intersectionRatio < 0.35) return;
-        observer.disconnect();
-        window.setTimeout(onReveal, delayMs);
-      });
-    },
-    { root: null, threshold: [0, 0.35, 0.5], rootMargin: "0px 0px -15% 0px" },
-  );
-
-  observer.observe(target);
-}
-
-function bootFeatureContentEntrances() {
-  if (prefersReducedMotion) return;
-
-  const CONTENT_ENTER_DELAY_MS = 400;
-  const contentSelectors = [
-    "#sl-features-story .sl-features-text-wrap .sl-feature-text",
-    "#sl-personalization .sl-feature-text",
-    "#sl-filters .sl-feature-text",
-  ];
-
-  contentSelectors.forEach((selector) => {
-    const content = document.querySelector(selector);
-    if (!content) return;
-
-    content.classList.add("is-content-enter-pending");
-
-    observeFeatureEntrance(content, () => {
-      content.classList.remove("is-content-enter-pending");
-
-      if (window.gsap) {
-        gsap.fromTo(
-          content,
-          { autoAlpha: 0, y: 56 },
-          { autoAlpha: 1, y: 0, duration: 1, ease: "power3.out", delay: 0.05 },
-        );
-        return;
-      }
-
-      content.classList.add("is-content-enter-revealed");
-    }, CONTENT_ENTER_DELAY_MS);
-  });
-}
-
-function bootFeaturePhoneEntrances() {
-  if (prefersReducedMotion) return;
-
-  const PHONE_ENTER_DELAY_MS = 250;
-  const phoneEntrances = [
-    { selector: "#sl-features-story .sl-feature-phone", from: "left" },
-    { selector: "#sl-personalization .sl-feature-phone", from: "right" },
-    { selector: "#sl-filters .sl-feature-phone", from: "left" },
-  ];
-
-  phoneEntrances.forEach(({ selector, from }) => {
-    const phone = document.querySelector(selector);
-    if (!phone) return;
-
-    phone.classList.add("is-phone-enter-pending", `is-phone-enter-from-${from}`);
-
-    observeFeatureEntrance(phone, () => {
-      phone.classList.remove("is-phone-enter-pending");
-
-      const startX = from === "left" ? -120 : 120;
-      const startRotation = from === "left" ? -14 : 14;
-
-      if (window.gsap) {
-        gsap.fromTo(
-          phone,
-          {
-            autoAlpha: 0,
-            x: startX,
-            rotation: startRotation,
-            transformOrigin: "50% 50%",
-          },
-          {
-            autoAlpha: 1,
-            x: 0,
-            rotation: 0,
-            duration: 1.1,
-            ease: "power3.out",
-            delay: 0.05,
-          },
-        );
-        return;
-      }
-
-      phone.classList.add("is-phone-enter-revealed");
-    }, PHONE_ENTER_DELAY_MS);
-  });
-}
-
 function bootAnimations() {
   if (prefersReducedMotion || !window.gsap || !window.ScrollTrigger) {
     document.documentElement.classList.add("no-motion");
@@ -168,7 +65,7 @@ function bootAnimations() {
 
   gsap.utils
     .toArray(
-      ".section-heading, #sl-features-intro, .sl-benefits-title, .sl-benefit-card, .sl-cta-home-inner, .sl-footer",
+      ".section-heading, .sl-benefits-title, .sl-benefit-card, .sl-cta-home-inner, .sl-footer",
     )
     .forEach((el) => {
     gsap.from(el, {
@@ -176,7 +73,7 @@ function bootAnimations() {
       opacity: 0,
       duration: 0.8,
       ease: "power2.out",
-      scrollTrigger: {
+    scrollTrigger: {
         trigger: el,
         start: "top 84%",
       },
@@ -184,6 +81,359 @@ function bootAnimations() {
   });
 
   bootClubSelectorStoryPin();
+  bootFeaturesIntroPin();
+  rebuildMobileScrollPins();
+}
+
+const FEATURES_INTRO_SCROLL_STEPS = [
+  { id: "credibility", enterFrom: null },
+  { id: "personalization", enterFrom: "right" },
+  { id: "filters", enterFrom: "left" },
+];
+
+const FEATURES_INTRO_SEGMENT_WEIGHTS = {
+  introHold: 0.2,
+  introExit: 0.55,
+  stepFade: 0.55,
+  stepHold: 0.25,
+  stepExit: 0.55,
+};
+
+const FEATURES_INTRO_PHONE_ENTER_OFFSET = 120;
+const FEATURES_INTRO_PHONE_ENTER_ROTATION = 14;
+
+function buildFeaturesIntroPinSegments() {
+  const segments = [
+    { key: "introHold", viewports: FEATURES_INTRO_SEGMENT_WEIGHTS.introHold },
+    { key: "introExit", viewports: FEATURES_INTRO_SEGMENT_WEIGHTS.introExit },
+  ];
+
+  FEATURES_INTRO_SCROLL_STEPS.forEach((step, index) => {
+    segments.push({ key: `${step.id}Fade`, viewports: FEATURES_INTRO_SEGMENT_WEIGHTS.stepFade, stepId: step.id });
+    segments.push({ key: `${step.id}Hold`, viewports: FEATURES_INTRO_SEGMENT_WEIGHTS.stepHold, stepId: step.id });
+    if (index < FEATURES_INTRO_SCROLL_STEPS.length - 1) {
+      segments.push({ key: `${step.id}Exit`, viewports: FEATURES_INTRO_SEGMENT_WEIGHTS.stepExit, stepId: step.id });
+    }
+  });
+
+  return segments;
+}
+
+const FEATURES_INTRO_PIN_SEGMENTS = buildFeaturesIntroPinSegments();
+
+function getFeaturesIntroPinSegment(progress) {
+  const totalViewports = FEATURES_INTRO_PIN_SEGMENTS.reduce((sum, segment) => sum + segment.viewports, 0);
+  let accumulated = 0;
+
+  for (const segment of FEATURES_INTRO_PIN_SEGMENTS) {
+    const segmentStart = accumulated / totalViewports;
+    accumulated += segment.viewports;
+    const segmentEnd = accumulated / totalViewports;
+
+    if (progress <= segmentEnd) {
+      const span = segmentEnd - segmentStart || 1;
+      const local = (progress - segmentStart) / span;
+      return { ...segment, local: Math.max(0, Math.min(1, local)) };
+    }
+  }
+
+  const lastSegment = FEATURES_INTRO_PIN_SEGMENTS[FEATURES_INTRO_PIN_SEGMENTS.length - 1];
+  return { ...lastSegment, local: 1 };
+}
+
+function getFeaturesIntroPinTotalViewports() {
+  return FEATURES_INTRO_PIN_SEGMENTS.reduce((sum, segment) => sum + segment.viewports, 0);
+}
+
+function getFeaturesIntroPhoneEnterOffset(direction) {
+  if (direction === "right") {
+    return { x: FEATURES_INTRO_PHONE_ENTER_OFFSET, rotation: FEATURES_INTRO_PHONE_ENTER_ROTATION };
+  }
+  if (direction === "left") {
+    return { x: -FEATURES_INTRO_PHONE_ENTER_OFFSET, rotation: -FEATURES_INTRO_PHONE_ENTER_ROTATION };
+  }
+  return { x: 0, rotation: 0 };
+}
+
+let featuresIntroPinController = null;
+
+function bootFeaturesIntroPin() {
+  if (prefersReducedMotion || !window.gsap || !window.ScrollTrigger) return;
+
+  const wrap = document.querySelector("#sl-features-intro");
+  const pinShell = document.querySelector("#sl-features-intro-pin-shell");
+  const intro = document.querySelector("#sl-features-intro-copy");
+  const mobileQuery = window.matchMedia("(max-width: 980px)");
+
+  const stepTexts = Object.fromEntries(
+    FEATURES_INTRO_SCROLL_STEPS.map((step) => [
+      step.id,
+      wrap?.querySelector(`.sl-features-step-text[data-feature-step="${step.id}"]`) ?? null,
+    ]),
+  );
+
+  const stepPhones = Object.fromEntries(
+    FEATURES_INTRO_SCROLL_STEPS.map((step) => [
+      step.id,
+      wrap?.querySelector(`.sl-features-step-phone[data-feature-step="${step.id}"] .sl-features-intro-phone`) ?? null,
+    ]),
+  );
+
+  function setStepTextState(
+    textEl,
+    { alpha = 0, yPercent = 0, visible = false, hidden = true } = {},
+  ) {
+    if (!textEl) return;
+
+    gsap.set(textEl, { autoAlpha: alpha, yPercent, y: 0 });
+    textEl.classList.toggle("is-features-intro-text-visible", visible);
+    textEl.setAttribute("aria-hidden", hidden ? "true" : "false");
+  }
+
+  function setStepPhoneState(phoneEl, { alpha = 0, x = 0, rotation = 0 } = {}) {
+    if (!phoneEl) return;
+
+    gsap.set(phoneEl, { autoAlpha: alpha, x, rotation });
+  }
+
+  function hideAllStepTexts() {
+    FEATURES_INTRO_SCROLL_STEPS.forEach((step) => {
+      setStepTextState(stepTexts[step.id], { alpha: 0, yPercent: 0, visible: false, hidden: true });
+    });
+  }
+
+  function resetStepPhonesForMobile() {
+    FEATURES_INTRO_SCROLL_STEPS.forEach((step, index) => {
+      const phone = stepPhones[step.id];
+      if (index === 0) {
+        setStepPhoneState(phone, { alpha: 1, x: 0, rotation: 0 });
+        return;
+      }
+
+      const enter = getFeaturesIntroPhoneEnterOffset(step.enterFrom);
+      setStepPhoneState(phone, { alpha: 0, x: enter.x, rotation: enter.rotation });
+    });
+  }
+
+  function setIntroLayoutHidden(hidden) {
+    if (!intro) return;
+
+    intro.style.position = hidden ? "absolute" : "";
+    intro.style.inset = hidden ? "0 0 auto 0" : "";
+    intro.style.width = hidden ? "100%" : "";
+  }
+
+  function resetLayers() {
+    if (!intro) return;
+
+    setIntroLayoutHidden(false);
+    wrap?.classList.remove("is-features-intro-steps-active");
+    gsap.set(intro, { autoAlpha: 1, yPercent: 0, y: 0, clearProps: "transform" });
+    intro.removeAttribute("aria-hidden");
+    hideAllStepTexts();
+    resetStepPhonesForMobile();
+  }
+
+  function destroyFeaturesIntroScroll() {
+    featuresIntroPinController?.timeline?.scrollTrigger?.kill();
+    featuresIntroPinController?.timeline?.kill();
+    featuresIntroPinController = null;
+    wrap?.classList.remove("is-features-intro-pin-active");
+    wrap?.classList.remove("is-features-intro-steps-active");
+  }
+
+  function getStepIndex(stepId) {
+    return FEATURES_INTRO_SCROLL_STEPS.findIndex((step) => step.id === stepId);
+  }
+
+  function applyPhoneTransition(currentStep, nextStep, progress) {
+    if (!currentStep) return;
+
+    const currentPhone = stepPhones[currentStep.id];
+    const nextPhone = nextStep ? stepPhones[nextStep.id] : null;
+    const nextEnter = nextStep ? getFeaturesIntroPhoneEnterOffset(nextStep.enterFrom) : { x: 0, rotation: 0 };
+    const currentExit = getFeaturesIntroPhoneEnterOffset(
+      currentStep.enterFrom === "right" ? "left" : currentStep.enterFrom === "left" ? "right" : "left",
+    );
+
+    if (currentPhone) {
+      setStepPhoneState(currentPhone, {
+        alpha: nextPhone ? 1 - progress : 1,
+        x: (currentExit.x / 3) * progress,
+        rotation: (currentExit.rotation / 2) * progress,
+      });
+    }
+
+    if (nextPhone) {
+      setStepPhoneState(nextPhone, {
+        alpha: progress,
+        x: nextEnter.x * (1 - progress),
+        rotation: nextEnter.rotation * (1 - progress),
+      });
+    }
+  }
+
+  function syncFeaturesIntroLayers(progress) {
+    if (!intro || !mobileQuery.matches) return;
+
+    const { key, local, stepId } = getFeaturesIntroPinSegment(progress);
+    const isIntroPhase = key === "introHold" || key === "introExit";
+    wrap?.classList.toggle("is-features-intro-steps-active", !isIntroPhase);
+
+    if (key === "introHold") {
+      gsap.set(intro, { yPercent: 0, autoAlpha: 1 });
+      intro.removeAttribute("aria-hidden");
+      hideAllStepTexts();
+      resetStepPhonesForMobile();
+      return;
+    }
+
+    if (key === "introExit") {
+      setIntroLayoutHidden(true);
+      gsap.set(intro, { yPercent: -100 * local, autoAlpha: 1 - local });
+      intro.setAttribute("aria-hidden", local > 0.5 ? "true" : "false");
+      hideAllStepTexts();
+      resetStepPhonesForMobile();
+      return;
+    }
+
+    gsap.set(intro, { yPercent: -100, autoAlpha: 0 });
+    intro.setAttribute("aria-hidden", "true");
+    setIntroLayoutHidden(true);
+
+    if (key.endsWith("Fade")) {
+      hideAllStepTexts();
+      setStepTextState(stepTexts[stepId], {
+        alpha: local,
+        yPercent: 0,
+        visible: local > 0,
+        hidden: local <= 0,
+      });
+
+      const stepIndex = getStepIndex(stepId);
+      const previousStep = stepIndex > 0 ? FEATURES_INTRO_SCROLL_STEPS[stepIndex - 1] : null;
+      const currentStep = FEATURES_INTRO_SCROLL_STEPS[stepIndex];
+
+      if (previousStep) {
+        FEATURES_INTRO_SCROLL_STEPS.forEach((step) => {
+          if (step.id === currentStep.id) {
+            setStepPhoneState(stepPhones[step.id], { alpha: 1, x: 0, rotation: 0 });
+            return;
+          }
+          const enter = getFeaturesIntroPhoneEnterOffset(step.enterFrom);
+          setStepPhoneState(stepPhones[step.id], { alpha: 0, x: enter.x, rotation: enter.rotation });
+        });
+      } else if (currentStep) {
+        setStepPhoneState(stepPhones[currentStep.id], { alpha: 1, x: 0, rotation: 0 });
+        FEATURES_INTRO_SCROLL_STEPS.forEach((step, index) => {
+          if (index === stepIndex) return;
+          const enter = getFeaturesIntroPhoneEnterOffset(step.enterFrom);
+          setStepPhoneState(stepPhones[step.id], { alpha: 0, x: enter.x, rotation: enter.rotation });
+        });
+      }
+      return;
+    }
+
+    if (key.endsWith("Hold")) {
+      hideAllStepTexts();
+      setStepTextState(stepTexts[stepId], { alpha: 1, yPercent: 0, visible: true, hidden: false });
+
+      FEATURES_INTRO_SCROLL_STEPS.forEach((step) => {
+        if (step.id === stepId) {
+          setStepPhoneState(stepPhones[step.id], { alpha: 1, x: 0, rotation: 0 });
+          return;
+        }
+        const enter = getFeaturesIntroPhoneEnterOffset(step.enterFrom);
+        setStepPhoneState(stepPhones[step.id], { alpha: 0, x: enter.x, rotation: enter.rotation });
+      });
+      return;
+    }
+
+    if (key.endsWith("Exit")) {
+      hideAllStepTexts();
+      setStepTextState(stepTexts[stepId], {
+        alpha: 1 - local,
+        yPercent: -100 * local,
+        visible: local < 1,
+        hidden: local >= 0.5,
+      });
+
+      const stepIndex = getStepIndex(stepId);
+      const currentStep = FEATURES_INTRO_SCROLL_STEPS[stepIndex];
+      const nextStep = FEATURES_INTRO_SCROLL_STEPS[stepIndex + 1] ?? null;
+
+      if (nextStep) {
+        const phoneProgress = Math.min(1, local * 1.25);
+        applyPhoneTransition(currentStep, nextStep, phoneProgress);
+        return;
+      }
+
+      FEATURES_INTRO_SCROLL_STEPS.forEach((step) => {
+        if (step.id === stepId) {
+          setStepPhoneState(stepPhones[step.id], { alpha: 1, x: 0, rotation: 0 });
+          return;
+        }
+        const enter = getFeaturesIntroPhoneEnterOffset(step.enterFrom);
+        setStepPhoneState(stepPhones[step.id], { alpha: 0, x: enter.x, rotation: enter.rotation });
+      });
+    }
+  }
+
+  function buildFeaturesIntroScroll() {
+    destroyFeaturesIntroScroll();
+    resetLayers();
+
+    if (!mobileQuery.matches || !wrap || !pinShell || !intro) {
+      return;
+    }
+
+    syncFeaturesIntroLayers(0);
+
+    const animationViewports = getFeaturesIntroPinTotalViewports();
+
+    const timeline = gsap.timeline({
+    scrollTrigger: {
+        id: "features-intro-scroll",
+        trigger: wrap,
+      start: "top top",
+        end: () => `+=${window.innerHeight * animationViewports}`,
+        pin: pinShell,
+        pinSpacing: true,
+      scrub: true,
+        anticipatePin: 0,
+        invalidateOnRefresh: true,
+        onToggle(self) {
+          wrap.classList.toggle("is-features-intro-pin-active", self.isActive);
+
+          if (!self.isActive && self.direction < 0) {
+            resetLayers();
+            return;
+          }
+
+          if (self.isActive) {
+            syncFeaturesIntroLayers(self.progress);
+          }
+        },
+        onUpdate(self) {
+          syncFeaturesIntroLayers(self.progress);
+        },
+    },
+  });
+
+    timeline.to({}, { duration: 1 });
+
+    featuresIntroPinController = { timeline, rebuild: buildFeaturesIntroScroll };
+  }
+
+  featuresIntroPinController = { rebuild: buildFeaturesIntroScroll };
+}
+
+function rebuildMobileScrollPins() {
+  if (prefersReducedMotion || !window.gsap || !window.ScrollTrigger) return;
+
+  clubSelectorPinController?.buildClubScroll?.();
+  featuresIntroPinController?.rebuild?.();
+  ScrollTrigger.refresh(true);
 }
 
 function bootHeroVideo() {
@@ -541,7 +791,7 @@ const PODCAST_PLAY_ICON = `<svg class="sl-app-podcast-play-icon" viewBox="0 0 24
 const PODCAST_MIC_ICON = `<svg class="sl-app-podcast-mic-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>`;
 
 const PODCASTS_SAMPLE_FEED = {
-  sectionTitle: "Recent Episodes",
+  sectionTitle: "Recent Podcasts",
   episodes: [
     {
       id: "94453",
@@ -621,7 +871,7 @@ const PODCASTS_SAMPLE_FEED = {
 
 const PODCASTS_FEED_BY_CLUB = {
   LFC: {
-    sectionTitle: "Recent Episodes",
+    sectionTitle: "Recent Podcasts",
     episodes: [
       {
         id: "94622",
@@ -676,7 +926,7 @@ const PODCASTS_FEED_BY_CLUB = {
     seeMoreLabel: "See more",
   },
   ARS: {
-    sectionTitle: "Recent Episodes",
+    sectionTitle: "Recent Podcasts",
     episodes: [
       {
         id: "93508",
@@ -843,7 +1093,6 @@ function getSocialFeedForClub(code) {
 function buildSocialFeedLoadingMarkup() {
   return `
     <div class="sl-club-story-feed-img sl-club-story-feed-img--social sl-club-story-feed-img--loading" data-testid="club-story-social-feed-loading">
-      <h2 class="sl-app-social-section-title" id="club-story-social-title" data-testid="club-story-social-title">Social</h2>
       <div class="sl-app-top-stories-loading" aria-live="polite">
         <span class="sl-app-top-stories-loading-spinner" aria-hidden="true"></span>
         <span class="sl-app-top-stories-loading-text">Loading social posts…</span>
@@ -873,7 +1122,6 @@ function buildSocialFeedMarkup(feed) {
 
   return `
     <div class="sl-club-story-feed-img sl-club-story-feed-img--social" data-testid="club-story-social-feed">
-      <h2 class="sl-app-social-section-title" id="club-story-social-title" data-testid="club-story-social-title">Social</h2>
       ${tweets}
     </div>
   `;
@@ -948,7 +1196,7 @@ async function hydrateClubStoryTwitterEmbeds(root) {
 function buildVideosLoadingMarkup() {
   return `
     <section class="sl-app-videos-feed sl-app-videos-feed--loading" id="content-section-film-room" data-testid="film-room-content" aria-label="film-room-content">
-      <h2 class="sl-app-videos-section-title" id="film-room-title" data-testid="film-room-title">Videos</h2>
+      <h2 class="sl-app-videos-section-title" id="film-room-title" data-testid="film-room-title">Latest Videos</h2>
       <div class="sl-app-top-stories-loading" data-testid="film-room-loading" aria-live="polite">
         <span class="sl-app-top-stories-loading-spinner" aria-hidden="true"></span>
         <span class="sl-app-top-stories-loading-text">Loading videos…</span>
@@ -960,7 +1208,7 @@ function buildVideosLoadingMarkup() {
 function buildVideosFeedMarkup(feed) {
   return `
     <section class="sl-app-videos-feed" id="content-section-film-room" data-testid="film-room-content" aria-label="film-room-content">
-      <h2 class="sl-app-videos-section-title" id="film-room-title" data-testid="film-room-title">Videos</h2>
+      <h2 class="sl-app-videos-section-title" id="film-room-title" data-testid="film-room-title">Latest Videos</h2>
       <div class="sl-app-film-room-videos" id="film-room-latest-videos-container" data-testid="film-room-latest-videos-container">
         ${feed.videos.map((video) => buildVideoCardMarkup(video)).join("")}
       </div>
@@ -2289,11 +2537,11 @@ function bootClubSelectorStory() {
 
   const STORY_STEP_COUNT = stepperItems.length || 4;
 
-  const PICK_HOLD = 0.5;
-  const STEP_HOLD = 0.5;
   const PICK_SCROLL_VIEWPORTS = 0.5;
-  const STORY_SCROLL_VIEWPORTS = 2;
+  const STORY_SCROLL_VIEWPORTS = 3;
   const TOTAL_SCROLL_VIEWPORTS = PICK_SCROLL_VIEWPORTS + STORY_SCROLL_VIEWPORTS;
+  const PICK_HOLD = PICK_SCROLL_VIEWPORTS;
+  const STEP_HOLD = STORY_SCROLL_VIEWPORTS / STORY_STEP_COUNT;
   const PICK_PROGRESS_CAP = PICK_SCROLL_VIEWPORTS / TOTAL_SCROLL_VIEWPORTS;
   const PHONE_SLIDE_DURATION = 0.85;
 
@@ -2393,11 +2641,19 @@ function bootClubSelectorStory() {
       storyHeadline.textContent = clubSelectorState.headlines[stepIndex];
     }
 
+    const useSingleMobileStepper = window.matchMedia("(max-width: 980px)").matches;
+
     stepperItems.forEach((item, itemIndex) => {
       const isActive = itemIndex === stepIndex;
       item.classList.toggle("is-active", isActive);
       const trigger = item.querySelector(".sl-club-story-stepper-trigger");
       trigger?.setAttribute("aria-current", isActive ? "step" : "false");
+
+      if (useSingleMobileStepper) {
+        item.setAttribute("aria-hidden", isActive ? "false" : "true");
+      } else {
+        item.removeAttribute("aria-hidden");
+      }
     });
   }
 
@@ -2606,11 +2862,12 @@ function bootClubSelectorStory() {
         id: "club-selector-scroll",
         trigger: wrap,
         start: "top top",
-        end: () => `+=${window.innerHeight * TOTAL_SCROLL_VIEWPORTS}`,
+        endTrigger: "#sl-features-intro",
+        end: "top top",
         pin: pinShell,
         pinSpacing: true,
-        scrub: 0.65,
-        anticipatePin: 1,
+        scrub: true,
+        anticipatePin: 0,
         invalidateOnRefresh: true,
         onUpdate(self) {
           clampToPickPhase(self);
@@ -2728,6 +2985,7 @@ function bootClubSelectorStory() {
       syncClubSelectorPhoneScales();
       const wasUnlocked = clubSelectorState.storyUnlocked;
       buildClubScroll();
+      featuresIntroPinController?.rebuild?.();
       if (wasUnlocked) {
         clubSelectorState.storyUnlocked = true;
         showStoryPhase();
@@ -2741,8 +2999,6 @@ function bootClubSelectorStory() {
 
 function bootClubSelectorStoryPin() {
   if (prefersReducedMotion || !window.gsap || !window.ScrollTrigger) return;
-
-  clubSelectorPinController?.buildClubScroll();
 
   window.addEventListener("resize", () => {
     clubSelectorPinController?.refreshOnResize();
@@ -2758,10 +3014,11 @@ renderClubStoryPhoneSteps();
 bootClubStoryPhoneViewports();
 bootClubSelectorStory();
 bootAnimations();
-bootFeatureContentEntrances();
-bootFeaturePhoneEntrances();
 
 window.addEventListener("load", () => {
   syncClubSelectorPhoneScales();
   clubSelectorPinController?.refreshOnResize();
+  if (window.ScrollTrigger) {
+    ScrollTrigger.refresh(true);
+  }
 });
