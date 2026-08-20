@@ -101,6 +101,11 @@ const FEATURES_INTRO_SEGMENT_WEIGHTS = {
 
 const FEATURES_INTRO_PHONE_ENTER_OFFSET = 120;
 const FEATURES_INTRO_PHONE_ENTER_ROTATION = 14;
+const FEATURES_INTRO_DESKTOP_PHONE_ENTER_Y = 50;
+const FEATURES_INTRO_DESKTOP_PHONE_EXIT_X = -400;
+const FEATURES_INTRO_DESKTOP_PHONE_EXIT_FADE_END = 0.68;
+const FEATURES_INTRO_DESKTOP_PHONE_ENTER_SCROLL_DELAY =
+  FEATURES_INTRO_DESKTOP_PHONE_EXIT_FADE_END * 0.7;
 
 function buildFeaturesIntroPinSegments() {
   const segments = [
@@ -156,8 +161,347 @@ function getFeaturesIntroPhoneEnterOffset(direction) {
 }
 
 let featuresIntroPinController = null;
+let featuresIntroMobileController = null;
+let featuresIntroDesktopController = null;
 
 function bootFeaturesIntroPin() {
+  if (prefersReducedMotion || !window.gsap || !window.ScrollTrigger) return;
+
+  bootFeaturesIntroMobilePin();
+  bootFeaturesIntroDesktopPin();
+  featuresIntroPinController = {
+    rebuild() {
+      featuresIntroMobileController?.rebuild?.();
+      featuresIntroDesktopController?.rebuild?.();
+    },
+  };
+}
+
+const FEATURES_INTRO_DESKTOP_SEGMENT_WEIGHTS = {
+  stepFade: 0.35,
+  stepHold: 0.55,
+  stepExit: 0.4,
+};
+
+function buildFeaturesIntroDesktopPinSegments() {
+  const segments = [];
+
+  FEATURES_INTRO_SCROLL_STEPS.forEach((step, index) => {
+    if (index > 0) {
+      segments.push({
+        key: `${step.id}Fade`,
+        viewports: FEATURES_INTRO_DESKTOP_SEGMENT_WEIGHTS.stepFade,
+        stepId: step.id,
+      });
+    }
+
+    segments.push({
+      key: `${step.id}Hold`,
+      viewports: FEATURES_INTRO_DESKTOP_SEGMENT_WEIGHTS.stepHold,
+      stepId: step.id,
+    });
+
+    if (index < FEATURES_INTRO_SCROLL_STEPS.length - 1) {
+      segments.push({
+        key: `${step.id}Exit`,
+        viewports: FEATURES_INTRO_DESKTOP_SEGMENT_WEIGHTS.stepExit,
+        stepId: step.id,
+      });
+    }
+  });
+
+  return segments;
+}
+
+const FEATURES_INTRO_DESKTOP_PIN_SEGMENTS = buildFeaturesIntroDesktopPinSegments();
+
+function getFeaturesIntroDesktopPinSegment(progress) {
+  const totalViewports = FEATURES_INTRO_DESKTOP_PIN_SEGMENTS.reduce((sum, segment) => sum + segment.viewports, 0);
+  let accumulated = 0;
+
+  for (const segment of FEATURES_INTRO_DESKTOP_PIN_SEGMENTS) {
+    const segmentStart = accumulated / totalViewports;
+    accumulated += segment.viewports;
+    const segmentEnd = accumulated / totalViewports;
+
+    if (progress <= segmentEnd) {
+      const span = segmentEnd - segmentStart || 1;
+      const local = (progress - segmentStart) / span;
+      return { ...segment, local: Math.max(0, Math.min(1, local)) };
+    }
+  }
+
+  const lastSegment = FEATURES_INTRO_DESKTOP_PIN_SEGMENTS[FEATURES_INTRO_DESKTOP_PIN_SEGMENTS.length - 1];
+  return { ...lastSegment, local: 1 };
+}
+
+function getFeaturesIntroDesktopPinTotalViewports() {
+  return FEATURES_INTRO_DESKTOP_PIN_SEGMENTS.reduce((sum, segment) => sum + segment.viewports, 0);
+}
+
+function bootFeaturesIntroDesktopPin() {
+  if (prefersReducedMotion || !window.gsap || !window.ScrollTrigger) return;
+
+  const wrap = document.querySelector("#sl-features-intro");
+  const pinShell = document.querySelector("#sl-features-intro-pin-shell");
+  const intro = document.querySelector("#sl-features-intro-copy");
+  const desktopQuery = window.matchMedia("(min-width: 981px)");
+
+  const stepTexts = Object.fromEntries(
+    FEATURES_INTRO_SCROLL_STEPS.map((step) => [
+      step.id,
+      wrap?.querySelector(`.sl-features-step-text[data-feature-step="${step.id}"]`) ?? null,
+    ]),
+  );
+
+  const stepPhones = Object.fromEntries(
+    FEATURES_INTRO_SCROLL_STEPS.map((step) => [
+      step.id,
+      wrap?.querySelector(`.sl-features-step-phone[data-feature-step="${step.id}"] .sl-features-intro-phone`) ?? null,
+    ]),
+  );
+
+  function setStepTextState(textEl, { alpha = 0, visible = false, hidden = true, x = 0, y = 0 } = {}) {
+    if (!textEl) return;
+
+    gsap.set(textEl, { autoAlpha: alpha, x, y, yPercent: 0 });
+    textEl.classList.toggle("is-features-intro-text-visible", visible);
+    textEl.setAttribute("aria-hidden", hidden ? "true" : "false");
+  }
+
+  function setDesktopTextHidden(textEl) {
+    setStepTextState(textEl, {
+      alpha: 0,
+      visible: false,
+      hidden: true,
+    });
+  }
+
+  function setDesktopTextVisible(textEl) {
+    setStepTextState(textEl, { alpha: 1, visible: true, hidden: false, x: 0, y: 0 });
+  }
+
+  function setStepPhoneState(phoneEl, { alpha = 0, x = 0, y = 0, rotation = 0 } = {}) {
+    if (!phoneEl) return;
+
+    gsap.set(phoneEl, { autoAlpha: alpha, x, y, rotation });
+  }
+
+  function setDesktopPhoneHidden(phoneEl) {
+    setStepPhoneState(phoneEl, {
+      alpha: 0,
+      x: 0,
+      y: FEATURES_INTRO_DESKTOP_PHONE_ENTER_Y,
+      rotation: 0,
+    });
+  }
+
+  function setDesktopPhoneVisible(phoneEl) {
+    setStepPhoneState(phoneEl, { alpha: 1, x: 0, y: 0, rotation: 0 });
+  }
+
+  function hideAllStepTexts() {
+    FEATURES_INTRO_SCROLL_STEPS.forEach((step) => {
+      setStepTextState(stepTexts[step.id], { alpha: 0, visible: false, hidden: true });
+    });
+  }
+
+  function resetDesktopPhones() {
+    FEATURES_INTRO_SCROLL_STEPS.forEach((step, index) => {
+      if (index === 0) {
+        setDesktopStepVisible(step);
+        return;
+      }
+
+      setDesktopStepHidden(step);
+    });
+  }
+
+  function resetDesktopLayers() {
+    if (!intro) return;
+
+    gsap.set(intro, { autoAlpha: 1, yPercent: 0, clearProps: "transform" });
+    intro.removeAttribute("aria-hidden");
+    hideAllStepTexts();
+    resetDesktopPhones();
+  }
+
+  function destroyFeaturesIntroDesktopScroll() {
+    featuresIntroDesktopController?.timeline?.scrollTrigger?.kill();
+    featuresIntroDesktopController?.timeline?.kill();
+    featuresIntroDesktopController = null;
+    wrap?.classList.remove("is-features-intro-desktop-pin-active");
+  }
+
+  function getStepIndex(stepId) {
+    return FEATURES_INTRO_SCROLL_STEPS.findIndex((step) => step.id === stepId);
+  }
+
+  function getDesktopPhoneEnterProgress(progress) {
+    if (progress <= FEATURES_INTRO_DESKTOP_PHONE_ENTER_SCROLL_DELAY) return 0;
+
+    return Math.min(
+      1,
+      (progress - FEATURES_INTRO_DESKTOP_PHONE_ENTER_SCROLL_DELAY) /
+        (1 - FEATURES_INTRO_DESKTOP_PHONE_ENTER_SCROLL_DELAY),
+    );
+  }
+
+  function applyDesktopStepTransition(currentStep, nextStep, progress) {
+    if (!currentStep) return;
+
+    const currentPhone = stepPhones[currentStep.id];
+    const currentText = stepTexts[currentStep.id];
+    const nextPhone = nextStep ? stepPhones[nextStep.id] : null;
+    const nextText = nextStep ? stepTexts[nextStep.id] : null;
+    const exitMoveT = progress;
+    const exitFadeT = Math.min(1, progress / FEATURES_INTRO_DESKTOP_PHONE_EXIT_FADE_END);
+    const enterT = getDesktopPhoneEnterProgress(progress);
+
+    if (currentPhone) {
+      setStepPhoneState(currentPhone, {
+        alpha: nextPhone ? 1 - exitFadeT : 1,
+        x: FEATURES_INTRO_DESKTOP_PHONE_EXIT_X * exitMoveT,
+        y: 0,
+        rotation: 0,
+      });
+    }
+
+    if (currentText) {
+      setStepTextState(currentText, {
+        alpha: nextText ? 1 - exitFadeT : 1,
+        visible: !nextText || exitFadeT < 1,
+        hidden: nextText ? exitFadeT >= 0.5 : false,
+      });
+    }
+
+    if (nextPhone) {
+      setStepPhoneState(nextPhone, {
+        alpha: enterT,
+        x: 0,
+        y: FEATURES_INTRO_DESKTOP_PHONE_ENTER_Y * (1 - enterT),
+        rotation: 0,
+      });
+    }
+
+    if (nextText) {
+      setStepTextState(nextText, {
+        alpha: enterT,
+        visible: enterT > 0,
+        hidden: enterT <= 0,
+      });
+    }
+  }
+
+  function setDesktopStepVisible(step) {
+    setDesktopPhoneVisible(stepPhones[step.id]);
+    setDesktopTextVisible(stepTexts[step.id]);
+  }
+
+  function setDesktopStepHidden(step) {
+    setDesktopPhoneHidden(stepPhones[step.id]);
+    setDesktopTextHidden(stepTexts[step.id]);
+  }
+
+  function syncFeaturesIntroDesktopLayers(progress) {
+    if (!intro || !desktopQuery.matches) return;
+
+    const { key, local, stepId } = getFeaturesIntroDesktopPinSegment(progress);
+
+    if (key.endsWith("Fade")) {
+      FEATURES_INTRO_SCROLL_STEPS.forEach((step) => {
+        if (step.id === stepId) {
+          setDesktopStepVisible(step);
+          return;
+        }
+
+        setDesktopStepHidden(step);
+      });
+      return;
+    }
+
+    if (key.endsWith("Hold")) {
+      FEATURES_INTRO_SCROLL_STEPS.forEach((step) => {
+        if (step.id === stepId) {
+          setDesktopStepVisible(step);
+          return;
+        }
+
+        setDesktopStepHidden(step);
+      });
+      return;
+    }
+
+    if (key.endsWith("Exit")) {
+      const stepIndex = getStepIndex(stepId);
+      const currentStep = FEATURES_INTRO_SCROLL_STEPS[stepIndex];
+      const nextStep = FEATURES_INTRO_SCROLL_STEPS[stepIndex + 1] ?? null;
+
+      if (nextStep) {
+        applyDesktopStepTransition(currentStep, nextStep, local);
+        return;
+      }
+
+      FEATURES_INTRO_SCROLL_STEPS.forEach((step) => {
+        if (step.id === stepId) {
+          setDesktopStepVisible(step);
+          return;
+        }
+
+        setDesktopStepHidden(step);
+      });
+    }
+  }
+
+  function buildFeaturesIntroDesktopScroll() {
+    destroyFeaturesIntroDesktopScroll();
+    resetDesktopLayers();
+
+    if (!desktopQuery.matches || !wrap || !pinShell || !intro) {
+      return;
+    }
+
+    syncFeaturesIntroDesktopLayers(0);
+
+    const animationViewports = getFeaturesIntroDesktopPinTotalViewports();
+    const timeline = gsap.timeline({
+      scrollTrigger: {
+        id: "features-intro-desktop-scroll",
+        trigger: wrap,
+        start: "top top",
+        end: () => `+=${window.innerHeight * animationViewports}`,
+        pin: pinShell,
+        pinSpacing: true,
+        scrub: true,
+        anticipatePin: 0,
+        invalidateOnRefresh: true,
+        onToggle(self) {
+          wrap.classList.toggle("is-features-intro-desktop-pin-active", self.isActive);
+
+          if (!self.isActive && self.direction < 0) {
+            resetDesktopLayers();
+            return;
+          }
+
+          if (self.isActive) {
+            syncFeaturesIntroDesktopLayers(self.progress);
+          }
+        },
+        onUpdate(self) {
+          syncFeaturesIntroDesktopLayers(self.progress);
+        },
+      },
+    });
+
+    timeline.to({}, { duration: 1 });
+
+    featuresIntroDesktopController = { timeline, rebuild: buildFeaturesIntroDesktopScroll };
+  }
+
+  featuresIntroDesktopController = { rebuild: buildFeaturesIntroDesktopScroll };
+}
+
+function bootFeaturesIntroMobilePin() {
   if (prefersReducedMotion || !window.gsap || !window.ScrollTrigger) return;
 
   const wrap = document.querySelector("#sl-features-intro");
@@ -235,9 +579,9 @@ function bootFeaturesIntroPin() {
   }
 
   function destroyFeaturesIntroScroll() {
-    featuresIntroPinController?.timeline?.scrollTrigger?.kill();
-    featuresIntroPinController?.timeline?.kill();
-    featuresIntroPinController = null;
+    featuresIntroMobileController?.timeline?.scrollTrigger?.kill();
+    featuresIntroMobileController?.timeline?.kill();
+    featuresIntroMobileController = null;
     wrap?.classList.remove("is-features-intro-pin-active");
     wrap?.classList.remove("is-features-intro-steps-active");
   }
@@ -422,10 +766,10 @@ function bootFeaturesIntroPin() {
 
     timeline.to({}, { duration: 1 });
 
-    featuresIntroPinController = { timeline, rebuild: buildFeaturesIntroScroll };
+    featuresIntroMobileController = { timeline, rebuild: buildFeaturesIntroScroll };
   }
 
-  featuresIntroPinController = { rebuild: buildFeaturesIntroScroll };
+  featuresIntroMobileController = { rebuild: buildFeaturesIntroScroll };
 }
 
 function rebuildMobileScrollPins() {
@@ -478,9 +822,11 @@ function bootHeroPhoneStatusBar() {
   window.setInterval(updateTime, 30000);
 }
 
-function buildPhoneStatusBarMarkup() {
+function buildPhoneStatusBarMarkup({ state = "" } = {}) {
+  const stateClass = state ? ` is-${state}-state` : "";
+
   return `
-    <div class="sl-phone-status-bar" aria-hidden="true">
+    <div class="sl-phone-status-bar${stateClass}" aria-hidden="true">
       <time class="sl-phone-status-time">9:41</time>
       <div class="sl-phone-status-icons">
         <svg class="sl-phone-status-icon sl-phone-status-signal" viewBox="0 0 18 12" focusable="false">
@@ -557,13 +903,13 @@ function renderClubSelectorTeams() {
   ).join("");
 }
 
-function computeClubAppScale(availableWidth, availableHeight) {
+function computeClubAppScale(availableWidth, availableHeight, fit = "contain") {
   if (availableWidth <= 0 || availableHeight <= 0) return 1;
 
-  return Math.min(
-    availableWidth / CLUB_SELECTOR_APP.width,
-    availableHeight / CLUB_SELECTOR_APP.height,
-  );
+  const scaleX = availableWidth / CLUB_SELECTOR_APP.width;
+  const scaleY = availableHeight / CLUB_SELECTOR_APP.height;
+
+  return fit === "cover" ? Math.max(scaleX, scaleY) : Math.min(scaleX, scaleY);
 }
 
 function getScalerAvailableSize(scaler) {
@@ -587,12 +933,21 @@ function getScalerAvailableSize(scaler) {
   };
 }
 
-function applyClubAppScale(scaler, viewport, availableWidth, availableHeight) {
+function getClubSelectorAppScaleFit() {
+  return window.matchMedia("(max-width: 980px)").matches ? "cover" : "contain";
+}
+
+function applyClubAppScale(scaler, viewport, availableWidth, availableHeight, fit = "contain") {
   if (!scaler || !viewport) return;
 
-  const scale = computeClubAppScale(availableWidth, availableHeight);
+  const scale = computeClubAppScale(availableWidth, availableHeight, fit);
   viewport.style.setProperty("--sl-app-scale", String(scale));
-  scaler.style.height = `${CLUB_SELECTOR_APP.height * scale}px`;
+
+  if (fit === "cover") {
+    scaler.style.height = "100%";
+  } else {
+    scaler.style.height = `${CLUB_SELECTOR_APP.height * scale}px`;
+  }
 }
 
 function syncClubSelectorAppViewport() {
@@ -602,7 +957,7 @@ function syncClubSelectorAppViewport() {
   if (!scaler || !viewport) return;
 
   const { width, height } = getScalerAvailableSize(scaler);
-  applyClubAppScale(scaler, viewport, width, height);
+  applyClubAppScale(scaler, viewport, width, height, getClubSelectorAppScaleFit());
 }
 
 function syncClubStoryPhoneScaleForScreen(screen) {
@@ -612,7 +967,7 @@ function syncClubStoryPhoneScaleForScreen(screen) {
   if (!scaler || !viewport) return;
 
   const { width, height } = getScalerAvailableSize(scaler);
-  applyClubAppScale(scaler, viewport, width, height);
+  applyClubAppScale(scaler, viewport, width, height, getClubSelectorAppScaleFit());
 }
 
 function syncClubSelectorPhoneScales() {
@@ -1479,7 +1834,7 @@ function buildClubStoryPhoneMarkup(clubCode = clubSelectorState.selectedCode) {
   const clubPrimary = getClubPrimaryColor(clubCode);
 
   return `
-    ${buildPhoneStatusBarMarkup()}
+    ${buildPhoneStatusBarMarkup({ state: "story" })}
     <div class="sl-app-scaler sl-club-story-app-scaler">
       <div class="sl-app-viewport sl-app-home-viewport" style="--club-primary: ${clubPrimary}">
         <div class="sl-app-home-screen">
@@ -2120,6 +2475,7 @@ function applyClubPrimaryColor(code) {
 
   document.documentElement.style.setProperty("--club-primary", hex);
   document.querySelector(".sl-club-selector-panel")?.style.setProperty("--club-primary", hex);
+  document.querySelector("#sl-club-selector-app-viewport")?.style.setProperty("--club-primary", hex);
 
   document.querySelectorAll(".sl-app-home-viewport").forEach((viewport) => {
     viewport.style.setProperty("--club-primary", hex);
