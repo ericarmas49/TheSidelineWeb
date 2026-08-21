@@ -215,8 +215,42 @@
                   </nav>
                 </div>
               </div>
-              <div id="sl-club-selector-story-phone-wrap" class="sl-club-selector-story-phone-wrap sl-club-selector-story-phone-slot">
-                <div class="sl-club-selector-story-phone-slot-marker" id="sl-club-selector-story-phone-slot" aria-hidden="true"></div>
+              <div id="sl-club-selector-story-phone-wrap" class="sl-club-selector-story-phone-wrap sl-club-selector-story-visual-wrap">
+                <div
+                  class="sl-club-selector-story-phone-slot-marker"
+                  id="sl-club-selector-story-phone-slot-marker"
+                  aria-hidden="true"
+                ></div>
+                <div class="sl-club-story-visual" id="sl-club-story-visual" aria-hidden="true">
+                  <figure class="sl-club-story-visual-step is-active" data-club-story-step="0">
+                    <img
+                      src="assets/app/screenshot-credibility.jpg"
+                      alt="Sideline app home feed with top stories"
+                      loading="lazy"
+                    />
+                  </figure>
+                  <figure class="sl-club-story-visual-step" data-club-story-step="1" hidden>
+                    <img
+                      src="assets/app/Screenshot 2026-08-06 at 9.47.43 AM.png"
+                      alt="Sideline app news feed"
+                      loading="lazy"
+                    />
+                  </figure>
+                  <figure class="sl-club-story-visual-step" data-club-story-step="2" hidden>
+                    <img
+                      src="assets/app/screenshot-personalization.jpg"
+                      alt="Sideline app follow podcasts screen"
+                      loading="lazy"
+                    />
+                  </figure>
+                  <figure class="sl-club-story-visual-step" data-club-story-step="3" hidden>
+                    <img
+                      src="assets/app/Screenshot 2026-08-06 at 9.55.38 AM.png"
+                      alt="Sideline app podcasts discovery screen"
+                      loading="lazy"
+                    />
+                  </figure>
+                </div>
               </div>
             </div>
           </div>
@@ -305,10 +339,16 @@
                     </div>
                   </div>
                 </div>
-                <div class="sl-club-selector-screen-layer sl-club-selector-screen-story" hidden>
+                <div
+                  class="sl-club-selector-screen-layer sl-club-selector-screen-story"
+                  id="sl-club-selector-screen-story"
+                  aria-hidden="true"
+                  hidden
+                >
                   <div
-                    class="phone-screen sl-phone-screen sl-club-story-phone-screen sl-club-selector-story-phone-screen"
-                    data-club-story-feed="0"
+                    class="sl-club-selector-story-phone-screen sl-club-story-phone-screen"
+                    data-club-story-feed
+                    data-live-step="0"
                   ></div>
                 </div>
               </div>
@@ -377,7 +417,7 @@
               </div>
             </div>
             </div>
-            <div id="sl-features-step-phone-personalization" class="sl-features-step-phone sl-features-step-personalization" data-feature-step="personalization" aria-hidden="true">
+            <div id="sl-features-step-phone-personalization" class="sl-features-step-phone sl-features-step-personalization" data-feature-step="personalization">
               <div id="sl-feature-personalization-phone" class="phone-shell sl-phone-shell sl-features-intro-phone sl-features-intro-phone-personalization">
                 <div class="phone-dynamic-island sl-phone-dynamic-island" aria-hidden="true"></div>
                 <div class="phone-screen sl-phone-screen sl-features-intro-phone-screen sl-hero-phone-screen">
@@ -411,7 +451,7 @@
                 </div>
               </div>
             </div>
-            <div id="sl-features-step-phone-filters" class="sl-features-step-phone sl-features-step-filters" data-feature-step="filters" aria-hidden="true">
+            <div id="sl-features-step-phone-filters" class="sl-features-step-phone sl-features-step-filters" data-feature-step="filters">
               <div id="sl-feature-filters-phone" class="phone-shell sl-phone-shell sl-features-intro-phone sl-features-intro-phone-filters">
                 <div class="phone-dynamic-island sl-phone-dynamic-island" aria-hidden="true"></div>
                 <div class="phone-screen sl-phone-screen sl-features-intro-phone-screen sl-hero-phone-screen">
@@ -515,6 +555,115 @@
         </div>
       </section>
       -->
+
+      <section id="sl-spectator" class="sl-section sl-spectator section-light" data-section aria-label="Be more than a spectator">
+        <div class="sl-spectator-inner">
+          <h2 class="sl-spectator-title">Be more than a spectator</h2>
+          <div class="sl-spectator-carousel" id="sl-spectator-carousel">
+            <div class="sl-spectator-stage">
+              <button
+                type="button"
+                class="sl-spectator-arrow sl-spectator-arrow-prev"
+                id="sl-spectator-prev"
+                aria-label="Previous feature"
+                hidden
+              >
+                <svg class="sl-spectator-arrow-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+              <div
+                class="sl-spectator-track"
+                id="sl-spectator-track"
+                tabindex="0"
+                role="region"
+                aria-roledescription="carousel"
+                aria-label="Spectator features"
+              >
+              <div class="sl-spectator-grid">
+                <article class="sl-spectator-card" id="sl-spectator-come-ready">
+              <figure class="sl-spectator-media">
+                <img
+                  class="sl-spectator-image"
+                  src="assets/app/IMG_7251.png"
+                  alt="Match preview with predictions and recent form"
+                  width="1170"
+                  height="1421"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </figure>
+              <h3 class="sl-spectator-heading">Come ready.</h3>
+              <p class="sl-spectator-body">Get the news, press conferences, lineups, predictions and all the talking points before kick-off</p>
+            </article>
+            <article class="sl-spectator-card" id="sl-spectator-watch-track-react">
+              <figure class="sl-spectator-media">
+                <img
+                  class="sl-spectator-image"
+                  src="assets/app/IMG_7259.png"
+                  alt="Key match moments timeline"
+                  width="1170"
+                  height="1182"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </figure>
+              <h3 class="sl-spectator-heading">Watch. Track. React.</h3>
+              <p class="sl-spectator-body">Keep one eye on the action and the other on all the stats and commentary as the match unfolds</p>
+            </article>
+            <article class="sl-spectator-card" id="sl-spectator-make-your-case">
+              <figure class="sl-spectator-media">
+                <img
+                  class="sl-spectator-image"
+                  src="assets/app/IMG_7254.png"
+                  alt="Player stats and performance grades"
+                  width="1170"
+                  height="1179"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </figure>
+              <h3 class="sl-spectator-heading">Make your case.</h3>
+              <p class="sl-spectator-body">Grade the players, dig into the numbers and back your take with stats, analysis and reactions</p>
+            </article>
+            <article class="sl-spectator-card" id="sl-spectator-never-clock-off">
+              <figure class="sl-spectator-media">
+                <img
+                  class="sl-spectator-image"
+                  src="assets/app/IMG_7256.png"
+                  alt="Publications, podcasts, and YouTube feed"
+                  width="1170"
+                  height="1911"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </figure>
+              <h3 class="sl-spectator-heading">Never clock off.</h3>
+              <p class="sl-spectator-body">Keep your ear to the ground on every story, rumor and conversation as attention turns to what's next</p>
+            </article>
+              </div>
+            </div>
+              <button
+                type="button"
+                class="sl-spectator-arrow sl-spectator-arrow-next"
+                id="sl-spectator-next"
+                aria-label="Next feature"
+                hidden
+              >
+                <svg class="sl-spectator-arrow-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M9.5 5.5 16 12l-6.5 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </div>
+            <div class="sl-spectator-dots" id="sl-spectator-dots" role="tablist" aria-label="Choose feature" hidden>
+              <button type="button" class="sl-spectator-dot is-active" role="tab" aria-label="Come ready" aria-selected="true" data-spectator-slide="0"></button>
+              <button type="button" class="sl-spectator-dot" role="tab" aria-label="Watch. Track. React." aria-selected="false" data-spectator-slide="1"></button>
+              <button type="button" class="sl-spectator-dot" role="tab" aria-label="Make your case" aria-selected="false" data-spectator-slide="2"></button>
+              <button type="button" class="sl-spectator-dot" role="tab" aria-label="Never clock off" aria-selected="false" data-spectator-slide="3"></button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section id="sl-cta-home" class="sl-section sl-cta-home" data-section aria-label="Download SideLine">
         <div class="sl-cta-home-bg" aria-hidden="true">

@@ -32,6 +32,12 @@ const CLUBS = {
   TOT: { name: "Tottenham Hotspur", tagId: 1795, slug: "tottenham-hotspur", cptId: 346 },
 };
 
+/** stm_tweet club_tag taxonomy slugs when they differ from CLUBS.slug */
+const CLUB_TAG_TAXONOMY_SLUG_OVERRIDES = {
+  BHA: "brighton-hove-albion",
+  COV: "coventry-city",
+};
+
 let publicationExcludesCache = null;
 
 function getClub(clubCode) {
@@ -161,8 +167,8 @@ function parseTopStoriesItem(item) {
   };
 }
 
-function toTopStoriesFeed(items, clubCode, teamColor, teamAbbrev) {
-  const normalized = items.slice(0, TOP_STORIES_PER_PAGE);
+function toTopStoriesFeed(items, clubCode, teamColor, teamAbbrev, limit = TOP_STORIES_PER_PAGE) {
+  const normalized = items.slice(0, limit);
 
   return {
     items: normalized.map((item, index) => {
@@ -184,7 +190,7 @@ function toTopStoriesFeed(items, clubCode, teamColor, teamAbbrev) {
   };
 }
 
-async function fetchTopStoriesContentQuery(scopeParams, minScore) {
+async function fetchTopStoriesContentQuery(scopeParams, minScore, perPage = TOP_STORIES_PER_PAGE) {
   return wpGet("content", {
     ...scopeParams,
     content_category: TOP_STORIES_CONTENT_CATEGORIES,
@@ -193,14 +199,14 @@ async function fetchTopStoriesContentQuery(scopeParams, minScore) {
     order: "desc",
     min_score: String(minScore),
     publication_type_exclude: TOP_STORIES_PUBLICATION_TYPE_EXCLUDE,
-    per_page: String(TOP_STORIES_PER_PAGE),
+    per_page: String(perPage),
     page: "1",
     _embed: "1",
     status: "publish",
   });
 }
 
-async function fetchTopStoriesRaw(clubCode) {
+async function fetchTopStoriesRaw(clubCode, { limit = TOP_STORIES_PER_PAGE } = {}) {
   const club = getClub(clubCode);
   if (!club) return [];
 
@@ -216,15 +222,15 @@ async function fetchTopStoriesRaw(clubCode) {
   let items = [];
 
   for (const scope of scopeAttempts) {
-    items = await fetchTopStoriesContentQuery({ ...scope, ...excludeParam }, TOP_STORIES_MIN_SCORE);
+    items = await fetchTopStoriesContentQuery({ ...scope, ...excludeParam }, TOP_STORIES_MIN_SCORE, limit);
     if (items.length > 0) break;
   }
 
-  if (items.length < TOP_STORIES_PER_PAGE) {
+  if (items.length < limit) {
     for (const scope of scopeAttempts) {
-      const fillItems = await fetchTopStoriesContentQuery({ ...scope, ...excludeParam }, 0);
+      const fillItems = await fetchTopStoriesContentQuery({ ...scope, ...excludeParam }, 0, limit);
       items = dedupeById([...items, ...fillItems]);
-      if (items.length >= TOP_STORIES_PER_PAGE) break;
+      if (items.length >= limit) break;
     }
   }
 
@@ -237,7 +243,8 @@ async function fetchTopStories(clubCode, options = {}) {
     throw new Error(`Unknown club code: ${clubCode}`);
   }
 
-  const rawItems = await fetchTopStoriesRaw(clubCode);
+  const limit = options.limit || TOP_STORIES_PER_PAGE;
+  const rawItems = await fetchTopStoriesRaw(clubCode, { limit });
   const parsed = rawItems.map(parseTopStoriesItem);
 
   return toTopStoriesFeed(
@@ -245,6 +252,7 @@ async function fetchTopStories(clubCode, options = {}) {
     clubCode,
     options.teamColor || "#374151",
     options.teamAbbrev || club.name.substring(0, 3).toUpperCase(),
+    limit,
   );
 }
 
@@ -321,6 +329,48 @@ async function fetchPodcasts(options = {}) {
 
   const items = await response.json();
   return items.map(parsePodcastItem);
+}
+
+function formatPodcastDate(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function toPodcastsFeed(items) {
+  return {
+    sectionTitle: "Recent Podcasts",
+    episodes: items.map((item) => ({
+      id: String(item.id),
+      title: item.title,
+      coverUrl: item.image || null,
+      seriesName: item.series || undefined,
+      duration: item.duration || undefined,
+      date: formatPodcastDate(item.date),
+    })),
+    seeMoreLabel: "See more",
+  };
+}
+
+async function fetchPodcastsForClub(clubCode, options = {}) {
+  const club = getClub(clubCode);
+  if (!club) {
+    throw new Error(`Unknown club code: ${clubCode}`);
+  }
+
+  const items = await fetchPodcasts({
+    clubTagSlug: club.slug,
+    perPage: options.perPage || 4,
+  });
+
+  return toPodcastsFeed(items);
 }
 
 function getVideoChannel(item) {
@@ -409,97 +459,214 @@ async function fetchVideosForClub(clubCode, options = {}) {
   return toVideosFeed(items);
 }
 
-function extractTweetEmbedBlockquote(embedCode) {
-  if (!embedCode) return "";
+const SOCIAL_STORY_MAX_ACCOUNTS = 4;
+const SOCIAL_STORY_MAX_TWEETS_PER_USER = 5;
+const SOCIAL_STORY_TWEET_LIMIT = 5;
 
-  const match = String(embedCode).match(/<blockquote[\s\S]*?<\/blockquote>/i);
-  return match ? match[0] : "";
+function getClubTagTaxonomySlug(clubCode) {
+  const club = getClub(clubCode);
+  if (!club) return null;
+
+  const normalizedCode = String(clubCode || "").toUpperCase();
+  return CLUB_TAG_TAXONOMY_SLUG_OVERRIDES[normalizedCode] || club.slug;
 }
 
-function extractTweetStatusUrl(item) {
-  const sources = [item.meta?._stm_embed_code, item.content?.rendered, item.link];
+function getSocialFeedUsername(post) {
+  const meta = post.meta || {};
 
-  for (const source of sources) {
-    const match = String(source || "").match(/https?:\/\/(?:twitter\.com|x\.com)\/[A-Za-z0-9_]+\/status\/(\d+)/i);
-    if (match) {
-      return match[0].split("?")[0];
+  if (meta._social_feed_x_username) {
+    return meta._social_feed_x_username.replace(/^@/, "").trim().toLowerCase();
+  }
+
+  const url = post.source_url || meta._social_feed_source_url;
+  if (!url) return null;
+
+  const match = String(url).match(/(?:twitter\.com|x\.com)\/([^/?#]+)/i);
+  if (!match) return null;
+
+  const segment = match[1].replace(/^@/, "").trim().toLowerCase();
+  if (!segment || segment === "i" || segment === "intent" || segment === "share") {
+    return null;
+  }
+
+  return segment;
+}
+
+function getSocialFeedContentScore(post) {
+  const raw = post.content_score ?? post.meta?._social_feed_content_score ?? 0;
+  const score = Number(raw);
+  return Number.isFinite(score) ? score : 0;
+}
+
+function getSocialFeedAccountLabel(post, username) {
+  const rendered = post.title?.rendered || "";
+  const label = decodeHtml(stripHtml(rendered)).replace(/^X\s*[–—-]\s*/i, "").trim();
+  return label || `@${username}`;
+}
+
+function rankClubSocialAccounts(posts) {
+  const byUser = new Map();
+
+  for (const post of posts) {
+    const username = getSocialFeedUsername(post);
+    if (!username) continue;
+
+    const score = getSocialFeedContentScore(post);
+    const label = getSocialFeedAccountLabel(post, username);
+    const url = post.source_url || post.meta?._social_feed_source_url || `https://x.com/${username}`;
+    const previous = byUser.get(username);
+
+    if (!previous || score > previous.score) {
+      byUser.set(username, { username, label, url, score });
     }
   }
 
-  return "";
+  return [...byUser.values()].sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.label.localeCompare(b.label);
+  });
 }
 
-function normalizeTweetEmbedBlockquote(blockquote, { theme = "dark", width = 310 } = {}) {
-  if (!blockquote) return "";
+async function fetchSocialFeedPostsByClubSlug(clubTagSlug) {
+  const posts = [];
+  let page = 1;
 
-  let html = blockquote
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/\sdata-theme="[^"]*"/gi, "")
-    .replace(/\sdata-width="[^"]*"/gi, "");
+  while (page <= 5) {
+    const batch = await wpGet("social_feed", {
+      club_tag_slug: clubTagSlug,
+      per_page: "100",
+      page: String(page),
+      orderby: "date",
+      order: "desc",
+      status: "publish",
+      _embed: "1",
+    });
 
-  html = html.replace(
-    /<blockquote/i,
-    `<blockquote data-theme="${theme}" data-dnt="true" data-width="${width}"`,
-  );
+    if (!batch.length) break;
 
-  return html;
-}
+    posts.push(...batch);
 
-function buildTweetEmbedMarkup(item) {
-  const blockquote = extractTweetEmbedBlockquote(item.meta?._stm_embed_code);
-  if (blockquote) {
-    return normalizeTweetEmbedBlockquote(blockquote);
+    if (batch.length < 100) break;
+    page += 1;
   }
 
-  const tweetUrl = extractTweetStatusUrl(item);
+  return posts;
+}
+
+function buildXTweetUrl(tweet) {
+  const username = tweet.source_username || tweet.sourceUsername || "";
+  if (username) {
+    return `https://twitter.com/${username}/status/${tweet.id}`;
+  }
+
+  return `https://twitter.com/i/web/status/${tweet.id}`;
+}
+
+function buildXTweetEmbedMarkup(tweetUrl) {
   if (!tweetUrl) return "";
 
   return `<blockquote class="twitter-tweet" data-theme="dark" data-dnt="true" data-width="310"><a href="${escapeHtml(tweetUrl)}"></a></blockquote>`;
 }
 
-function parseTweetItem(item) {
+function formatXTweetHtml(tweet) {
+  const text = String(tweet.text || "").trim();
+  if (!text) return "";
+
+  const escaped = escapeHtml(text).replace(/\n/g, "<br>");
+  const username = tweet.source_username || tweet.sourceUsername || "";
+  const handle = username ? `@${escapeHtml(username)}` : "";
+
+  return `
+    <div class="stm-tweet-content">
+      <p>${escaped}</p>
+      ${handle ? `<p class="stm-tweet-meta">${handle}</p>` : ""}
+    </div>
+  `.trim();
+}
+
+function mapXTweetToFeedItem(tweet) {
+  const tweetUrl = buildXTweetUrl(tweet);
+
   return {
-    id: item.id,
-    html: item.content?.rendered || "",
-    embedHtml: buildTweetEmbedMarkup(item),
-    tweetUrl: extractTweetStatusUrl(item),
+    id: String(tweet.id),
+    html: formatXTweetHtml(tweet),
+    embedHtml: buildXTweetEmbedMarkup(tweetUrl),
+    tweetUrl,
+    createdAt: tweet.created_at || "",
   };
 }
 
-function buildTweetsUrl({ clubTag, clubTagSlug, perPage = 5 } = {}) {
+function mapProfileFallbackToFeedItem(account) {
+  const profileUrl = account.url || `https://x.com/${account.username}`;
+
+  return {
+    id: `profile-${account.username}`,
+    html: `
+      <div class="sl-club-story-tweet-profile">
+        <a href="${escapeHtml(profileUrl)}" target="_blank" rel="noopener noreferrer">
+          <strong>${escapeHtml(account.label)}</strong>
+          <span>@${escapeHtml(account.username)}</span>
+        </a>
+      </div>
+    `.trim(),
+    embedHtml: "",
+    tweetUrl: profileUrl,
+    isProfileFallback: true,
+  };
+}
+
+async function fetchXTweetsViaProxy(username, maxResults = SOCIAL_STORY_MAX_TWEETS_PER_USER) {
   const params = new URLSearchParams({
-    per_page: String(perPage),
-    orderby: "date",
-    order: "desc",
+    username,
+    max_results: String(maxResults),
   });
 
-  if (clubTag) {
-    params.set("club_tag", String(clubTag));
-  } else if (clubTagSlug) {
-    params.set("club_tag_slug", clubTagSlug);
-  }
+  const response = await fetch(`/api/x/tweets?${params}`);
+  if (!response.ok) return [];
 
-  return `${WP_API.baseUrl}/stm_tweet?${params.toString()}`;
+  const data = await response.json();
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.tweets)) return data.tweets;
+  return [];
 }
 
-async function fetchTweets(options = {}) {
-  const response = await fetch(buildTweetsUrl(options));
+async function fetchClubSocialTweets(accounts, { maxAccounts, maxPerUser, limit }) {
+  const topAccounts = accounts.slice(0, maxAccounts);
+  if (!topAccounts.length) return [];
 
-  if (!response.ok) {
-    throw new Error(`Tweets request failed (${response.status})`);
-  }
+  const results = await Promise.all(
+    topAccounts.map(async (account) => {
+      const tweets = await fetchXTweetsViaProxy(account.username, maxPerUser);
+      return tweets.map((tweet) =>
+        mapXTweetToFeedItem({
+          ...tweet,
+          source_username: tweet.source_username || account.username,
+        }),
+      );
+    }),
+  );
 
-  const items = await response.json();
-  return items.map(parseTweetItem);
+  const seen = new Set();
+  const merged = results
+    .flat()
+    .filter((tweet) => {
+      if (seen.has(tweet.id)) return false;
+      seen.add(tweet.id);
+      return true;
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  return merged.slice(0, limit);
 }
 
-function toSocialFeed(items) {
+function toSocialFeed(tweets) {
   return {
-    tweets: items.map((item) => ({
-      id: String(item.id),
-      html: item.html,
-      embedHtml: item.embedHtml,
-      tweetUrl: item.tweetUrl,
+    tweets: tweets.map((tweet) => ({
+      id: String(tweet.id),
+      html: tweet.html,
+      embedHtml: tweet.embedHtml,
+      tweetUrl: tweet.tweetUrl,
+      isProfileFallback: Boolean(tweet.isProfileFallback),
     })),
   };
 }
@@ -510,14 +677,25 @@ async function fetchSocialFeedForClub(clubCode, options = {}) {
     throw new Error(`Unknown club code: ${clubCode}`);
   }
 
-  const perPage = options.perPage || 5;
-  let items = await fetchTweets({ clubTag: club.tagId, perPage });
-
-  if (!items.length) {
-    items = await fetchTweets({ clubTagSlug: club.slug, perPage });
+  const clubTagSlug = getClubTagTaxonomySlug(clubCode);
+  if (!clubTagSlug) {
+    return toSocialFeed([]);
   }
 
-  return toSocialFeed(items);
+  const limit = options.perPage || SOCIAL_STORY_TWEET_LIMIT;
+  const maxAccounts = options.maxAccounts || SOCIAL_STORY_MAX_ACCOUNTS;
+  const maxPerUser = options.maxTweetsPerUser || SOCIAL_STORY_MAX_TWEETS_PER_USER;
+
+  const posts = await fetchSocialFeedPostsByClubSlug(clubTagSlug);
+  const accounts = rankClubSocialAccounts(posts);
+
+  let tweets = await fetchClubSocialTweets(accounts, { maxAccounts, maxPerUser, limit });
+
+  if (!tweets.length && accounts.length) {
+    tweets = accounts.slice(0, limit).map(mapProfileFallbackToFeedItem);
+  }
+
+  return toSocialFeed(tweets);
 }
 
 function getClubTagId(clubCode) {
@@ -526,6 +704,10 @@ function getClubTagId(clubCode) {
 
 function getClubTagSlug(clubCode) {
   return getClub(clubCode)?.slug ?? null;
+}
+
+function getClubTagTaxonomySlugForClub(clubCode) {
+  return getClubTagTaxonomySlug(clubCode);
 }
 
 function getClubCptId(clubCode) {
@@ -539,6 +721,7 @@ window.SideLineAPI = {
   fetchTopStories,
   fetchContent,
   fetchPodcasts,
+  fetchPodcastsForClub,
   fetchVideos,
   fetchVideosForClub,
   fetchSocialFeedForClub,
@@ -546,10 +729,10 @@ window.SideLineAPI = {
   parseTopStoriesItem,
   parsePodcastItem,
   parseVideoItem,
-  parseTweetItem,
   getClub,
   getClubTagId,
   getClubTagSlug,
+  getClubTagTaxonomySlugForClub,
   getClubCptId,
   escapeHtml,
 };

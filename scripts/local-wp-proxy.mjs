@@ -7,9 +7,41 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { fetchXTweetsForUsername } from "../lib/x-api.mjs";
+import { getXBearerToken } from "../lib/x-env.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
+
+function loadEnvFile() {
+  const envPath = path.join(ROOT, ".env");
+  if (!fs.existsSync(envPath)) return;
+
+  const content = fs.readFileSync(envPath, "utf8");
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    const separator = trimmed.indexOf("=");
+    if (separator === -1) continue;
+
+    const key = trimmed.slice(0, separator).trim();
+    let value = trimmed.slice(separator + 1).trim();
+
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+
+    if (!(key in process.env)) {
+      process.env[key] = value;
+    }
+  }
+}
+
+loadEnvFile();
 const WP_BASE = "https://circleblox.wpengine.com/wp-json/wp/v2";
 const WP_CONTACT_URL = "https://circleblox.wpengine.com/wp-json/sideline/v1/contact";
 const PORT = Number(process.argv[2]) || 8080;
@@ -73,6 +105,38 @@ async function proxyContact(req, res) {
     sendJson(res, 502, {
       error: "Failed to send message.",
       message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}
+
+async function proxyXTweets(_req, res, searchParams) {
+  const username = String(searchParams.get("username") || "")
+    .replace(/^@/, "")
+    .trim();
+  const maxResults = Number.parseInt(String(searchParams.get("max_results") || "10"), 10);
+  const bearerToken = getXBearerToken();
+
+  if (!username) {
+    sendJson(res, 400, { error: "username is required" });
+    return;
+  }
+
+  if (!bearerToken) {
+    sendJson(res, 503, { error: "X API not configured", tweets: [] });
+    return;
+  }
+
+  try {
+    const tweets = await fetchXTweetsForUsername(username, {
+      maxResults: Number.isNaN(maxResults) ? 10 : maxResults,
+      bearerToken,
+    });
+    sendJson(res, 200, tweets);
+  } catch (error) {
+    sendJson(res, 502, {
+      error: "X API request failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+      tweets: [],
     });
   }
 }
@@ -166,6 +230,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (url.pathname === "/api/x/tweets" && req.method === "GET") {
+    void proxyXTweets(req, res, url.searchParams);
+    return;
+  }
+
   if (url.pathname.startsWith("/api/wp/")) {
     const wpPath = url.pathname.replace(/^\/api\/wp\//, "");
     void proxyWp(req, res, wpPath, url.search);
@@ -208,6 +277,7 @@ function startServer(port) {
   server.listen(port, () => {
     console.log(`TheSidelineWeb dev server: http://127.0.0.1:${port}`);
     console.log(`WP proxy: http://127.0.0.1:${port}/api/wp/content?...`);
+    console.log(`X API proxy: http://127.0.0.1:${port}/api/x/tweets?username=...`);
     console.log(`Contact API: http://127.0.0.1:${port}/api/contact`);
   });
 }

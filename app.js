@@ -1,5 +1,15 @@
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+if ("scrollRestoration" in history) {
+  history.scrollRestoration = "manual";
+}
+
+function resetPageScrollPosition() {
+  window.scrollTo(0, 0);
+}
+
+resetPageScrollPosition();
+
 const CTA_LOGO_CODES = [
   "ars",
   "avl",
@@ -38,6 +48,241 @@ function bootCtaLogoGrid() {
   grid.innerHTML = buildCtaLogoGridMarkup();
 }
 
+function bootSpectatorCarousel() {
+  const track = document.querySelector("#sl-spectator-track");
+  const dots = document.querySelector("#sl-spectator-dots");
+  const prevButton = document.querySelector("#sl-spectator-prev");
+  const nextButton = document.querySelector("#sl-spectator-next");
+
+  if (!track || !dots) return;
+
+  const dotButtons = [...dots.querySelectorAll(".sl-spectator-dot")];
+  const mobileQuery = window.matchMedia("(max-width: 980px)");
+
+  if (dotButtons.length === 0) return;
+
+  let scrollRaf = 0;
+  let isLoopJumping = false;
+  let realCards = [...track.querySelectorAll(".sl-spectator-card:not(.sl-spectator-card-clone)")];
+  let slideElements = realCards;
+
+  function removeLoopClones() {
+    track.querySelectorAll(".sl-spectator-card-clone").forEach((clone) => clone.remove());
+    slideElements = realCards;
+  }
+
+  function setupLoopClones() {
+    removeLoopClones();
+
+    const grid = track.querySelector(".sl-spectator-grid");
+    if (!grid || !mobileQuery.matches || realCards.length < 2) {
+      slideElements = realCards;
+      return;
+    }
+
+    const firstClone = realCards[0].cloneNode(true);
+    const lastClone = realCards[realCards.length - 1].cloneNode(true);
+
+    [firstClone, lastClone].forEach((clone) => {
+      clone.classList.add("sl-spectator-card-clone");
+      clone.setAttribute("aria-hidden", "true");
+      clone.querySelectorAll("[id]").forEach((el) => el.removeAttribute("id"));
+    });
+
+    grid.insertBefore(lastClone, realCards[0]);
+    grid.appendChild(firstClone);
+    slideElements = [...grid.querySelectorAll(".sl-spectator-card")];
+  }
+
+  function getRawIndex() {
+    const trackRect = track.getBoundingClientRect();
+    const trackCenter = trackRect.left + trackRect.width / 2;
+    let closestIndex = 0;
+    let closestDistance = Infinity;
+
+    slideElements.forEach((slide, index) => {
+      const slideRect = slide.getBoundingClientRect();
+      const slideCenter = slideRect.left + slideRect.width / 2;
+      const distance = Math.abs(slideCenter - trackCenter);
+
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    });
+
+    return closestIndex;
+  }
+
+  function getRealIndex(rawIndex = getRawIndex()) {
+    if (!mobileQuery.matches || realCards.length < 2) {
+      return Math.min(Math.max(rawIndex, 0), realCards.length - 1);
+    }
+
+    if (rawIndex === 0) return realCards.length - 1;
+    if (rawIndex === slideElements.length - 1) return 0;
+    return rawIndex - 1;
+  }
+
+  function updateControls(index = getRealIndex()) {
+    dotButtons.forEach((dot, dotIndex) => {
+      const isActive = dotIndex === index;
+      dot.classList.toggle("is-active", isActive);
+      dot.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+  }
+
+  function getScrollOffsetForSlide(slide) {
+    return slide.offsetLeft - (track.clientWidth - slide.offsetWidth) / 2;
+  }
+
+  function jumpToRawIndex(rawIndex) {
+    const slide = slideElements[rawIndex];
+    if (!slide) return;
+
+    isLoopJumping = true;
+    track.style.scrollSnapType = "none";
+    track.style.scrollBehavior = "auto";
+    track.scrollLeft = getScrollOffsetForSlide(slide);
+    track.style.removeProperty("scroll-snap-type");
+    track.style.removeProperty("scroll-behavior");
+    updateControls(getRealIndex(rawIndex));
+
+    window.requestAnimationFrame(() => {
+      isLoopJumping = false;
+    });
+  }
+
+  function scrollToRawIndex(rawIndex, smooth = true) {
+    const slide = slideElements[rawIndex];
+    if (!slide || isLoopJumping) return;
+
+    track.scrollTo({
+      left: getScrollOffsetForSlide(slide),
+      behavior: smooth && !prefersReducedMotion ? "smooth" : "auto",
+    });
+    updateControls(getRealIndex(rawIndex));
+  }
+
+  function scrollToRealIndex(realIndex, smooth = true) {
+    const count = realCards.length;
+    if (count === 0) return;
+
+    if (!mobileQuery.matches || count < 2) {
+      scrollToRawIndex(realIndex, smooth);
+      return;
+    }
+
+    const currentReal = getRealIndex();
+    if (currentReal === realIndex) return;
+
+    const forward = (realIndex - currentReal + count) % count;
+    const backward = (currentReal - realIndex + count) % count;
+    const currentRaw = getRawIndex();
+
+    if (forward <= backward) {
+      scrollToRawIndex(currentRaw + forward, smooth);
+      return;
+    }
+
+    scrollToRawIndex(currentRaw - backward, smooth);
+  }
+
+  function stepBy(delta, smooth = true) {
+    if (!mobileQuery.matches || realCards.length < 2) {
+      const nextReal =
+        (getRealIndex() + delta + realCards.length) % Math.max(realCards.length, 1);
+      scrollToRealIndex(nextReal, smooth);
+      return;
+    }
+
+    const nextRaw = getRawIndex() + delta;
+    if (nextRaw >= 0 && nextRaw < slideElements.length) {
+      scrollToRawIndex(nextRaw, smooth);
+    }
+  }
+
+  function maybeJumpLoopEnds() {
+    if (!mobileQuery.matches || realCards.length < 2 || isLoopJumping) return;
+
+    const rawIndex = getRawIndex();
+
+    if (rawIndex === 0) {
+      jumpToRawIndex(slideElements.length - 2);
+      return;
+    }
+
+    if (rawIndex === slideElements.length - 1) {
+      jumpToRawIndex(1);
+      return;
+    }
+
+    updateControls(getRealIndex(rawIndex));
+  }
+
+  function syncCarouselMode() {
+    const isMobile = mobileQuery.matches;
+    dots.hidden = !isMobile;
+    if (prevButton) prevButton.hidden = !isMobile;
+    if (nextButton) nextButton.hidden = !isMobile;
+
+    realCards = [...track.querySelectorAll(".sl-spectator-card:not(.sl-spectator-card-clone)")];
+
+    if (!isMobile) {
+      removeLoopClones();
+      track.scrollLeft = 0;
+      updateControls(0);
+      return;
+    }
+
+    setupLoopClones();
+    jumpToRawIndex(realCards.length >= 2 ? 1 : 0);
+    updateControls(0);
+  }
+
+  dotButtons.forEach((dot, index) => {
+    dot.addEventListener("click", () => scrollToRealIndex(index));
+  });
+
+  prevButton?.addEventListener("click", () => stepBy(-1));
+  nextButton?.addEventListener("click", () => stepBy(1));
+
+  track.addEventListener(
+    "scroll",
+    () => {
+      if (!mobileQuery.matches || isLoopJumping) return;
+
+      cancelAnimationFrame(scrollRaf);
+      scrollRaf = window.requestAnimationFrame(() => {
+        updateControls(getRealIndex());
+      });
+    },
+    { passive: true },
+  );
+
+  if ("onscrollend" in track) {
+    track.addEventListener("scrollend", maybeJumpLoopEnds);
+  } else {
+    let loopJumpTimeout = 0;
+    track.addEventListener(
+      "scroll",
+      () => {
+        if (!mobileQuery.matches || isLoopJumping) return;
+
+        window.clearTimeout(loopJumpTimeout);
+        loopJumpTimeout = window.setTimeout(
+          maybeJumpLoopEnds,
+          prefersReducedMotion ? 0 : 120,
+        );
+      },
+      { passive: true },
+    );
+  }
+
+  mobileQuery.addEventListener("change", syncCarouselMode);
+  syncCarouselMode();
+}
+
 function bootAnimations() {
   if (prefersReducedMotion || !window.gsap || !window.ScrollTrigger) {
     document.documentElement.classList.add("no-motion");
@@ -65,7 +310,7 @@ function bootAnimations() {
 
   gsap.utils
     .toArray(
-      ".section-heading, .sl-benefits-title, .sl-benefit-card, .sl-cta-home-inner, .sl-footer",
+      ".section-heading, .sl-benefits-title, .sl-benefit-card, .sl-spectator-title, .sl-spectator-carousel, .sl-cta-home-inner, .sl-footer",
     )
     .forEach((el) => {
     gsap.from(el, {
@@ -91,63 +336,32 @@ const FEATURES_INTRO_SCROLL_STEPS = [
   { id: "filters", enterFrom: "left" },
 ];
 
-const FEATURES_INTRO_SEGMENT_WEIGHTS = {
-  introHold: 0.2,
-  introExit: 0.55,
-  stepFade: 0.55,
-  stepHold: 0.25,
-  stepExit: 0.55,
-};
-
 const FEATURES_INTRO_PHONE_ENTER_OFFSET = 120;
 const FEATURES_INTRO_PHONE_ENTER_ROTATION = 14;
 const FEATURES_INTRO_DESKTOP_PHONE_ENTER_Y = 50;
 const FEATURES_INTRO_DESKTOP_PHONE_EXIT_X = -400;
 const FEATURES_INTRO_DESKTOP_PHONE_EXIT_FADE_END = 0.68;
-const FEATURES_INTRO_DESKTOP_PHONE_ENTER_SCROLL_DELAY =
-  FEATURES_INTRO_DESKTOP_PHONE_EXIT_FADE_END * 0.7;
+const FEATURES_INTRO_MOBILE_PIN_VIEWPORTS = 2.75;
+const FEATURES_INTRO_DESKTOP_PIN_VIEWPORTS = 2.25;
+const FEATURES_INTRO_MOBILE_STEP_COUNT = 1 + FEATURES_INTRO_SCROLL_STEPS.length;
+const FEATURES_INTRO_DESKTOP_STEP_COUNT = FEATURES_INTRO_SCROLL_STEPS.length;
 
-function buildFeaturesIntroPinSegments() {
-  const segments = [
-    { key: "introHold", viewports: FEATURES_INTRO_SEGMENT_WEIGHTS.introHold },
-    { key: "introExit", viewports: FEATURES_INTRO_SEGMENT_WEIGHTS.introExit },
-  ];
+function buildFeaturesIntroSnapValues(stepCount) {
+  if (stepCount <= 1) return [0];
 
-  FEATURES_INTRO_SCROLL_STEPS.forEach((step, index) => {
-    segments.push({ key: `${step.id}Fade`, viewports: FEATURES_INTRO_SEGMENT_WEIGHTS.stepFade, stepId: step.id });
-    segments.push({ key: `${step.id}Hold`, viewports: FEATURES_INTRO_SEGMENT_WEIGHTS.stepHold, stepId: step.id });
-    if (index < FEATURES_INTRO_SCROLL_STEPS.length - 1) {
-      segments.push({ key: `${step.id}Exit`, viewports: FEATURES_INTRO_SEGMENT_WEIGHTS.stepExit, stepId: step.id });
-    }
-  });
-
-  return segments;
+  return Array.from({ length: stepCount }, (_, index) => index / (stepCount - 1));
 }
 
-const FEATURES_INTRO_PIN_SEGMENTS = buildFeaturesIntroPinSegments();
+function getFeaturesIntroStepFromProgress(progress, stepCount) {
+  if (stepCount <= 1) return 0;
 
-function getFeaturesIntroPinSegment(progress) {
-  const totalViewports = FEATURES_INTRO_PIN_SEGMENTS.reduce((sum, segment) => sum + segment.viewports, 0);
-  let accumulated = 0;
-
-  for (const segment of FEATURES_INTRO_PIN_SEGMENTS) {
-    const segmentStart = accumulated / totalViewports;
-    accumulated += segment.viewports;
-    const segmentEnd = accumulated / totalViewports;
-
-    if (progress <= segmentEnd) {
-      const span = segmentEnd - segmentStart || 1;
-      const local = (progress - segmentStart) / span;
-      return { ...segment, local: Math.max(0, Math.min(1, local)) };
-    }
-  }
-
-  const lastSegment = FEATURES_INTRO_PIN_SEGMENTS[FEATURES_INTRO_PIN_SEGMENTS.length - 1];
-  return { ...lastSegment, local: 1 };
+  return Math.min(stepCount - 1, Math.max(0, Math.round(progress * (stepCount - 1))));
 }
 
-function getFeaturesIntroPinTotalViewports() {
-  return FEATURES_INTRO_PIN_SEGMENTS.reduce((sum, segment) => sum + segment.viewports, 0);
+function getFeaturesIntroSnapProgress(stepIndex, stepCount) {
+  if (stepCount <= 1) return 0;
+
+  return stepIndex / (stepCount - 1);
 }
 
 function getFeaturesIntroPhoneEnterOffset(direction) {
@@ -160,83 +374,46 @@ function getFeaturesIntroPhoneEnterOffset(direction) {
   return { x: 0, rotation: 0 };
 }
 
+const featuresIntroState = {
+  mobileStepIndex: 0,
+  desktopStepIndex: 0,
+  isAnimating: false,
+};
+
 let featuresIntroPinController = null;
 let featuresIntroMobileController = null;
 let featuresIntroDesktopController = null;
+let featuresIntroBreakpointQuery = null;
 
 function bootFeaturesIntroPin() {
   if (prefersReducedMotion || !window.gsap || !window.ScrollTrigger) return;
 
   bootFeaturesIntroMobilePin();
   bootFeaturesIntroDesktopPin();
-  featuresIntroPinController = {
-    rebuild() {
-      featuresIntroMobileController?.rebuild?.();
-      featuresIntroDesktopController?.rebuild?.();
-    },
-  };
-}
 
-const FEATURES_INTRO_DESKTOP_SEGMENT_WEIGHTS = {
-  stepFade: 0.35,
-  stepHold: 0.55,
-  stepExit: 0.4,
-};
-
-function buildFeaturesIntroDesktopPinSegments() {
-  const segments = [];
-
-  FEATURES_INTRO_SCROLL_STEPS.forEach((step, index) => {
-    if (index > 0) {
-      segments.push({
-        key: `${step.id}Fade`,
-        viewports: FEATURES_INTRO_DESKTOP_SEGMENT_WEIGHTS.stepFade,
-        stepId: step.id,
-      });
-    }
-
-    segments.push({
-      key: `${step.id}Hold`,
-      viewports: FEATURES_INTRO_DESKTOP_SEGMENT_WEIGHTS.stepHold,
-      stepId: step.id,
+  if (!featuresIntroBreakpointQuery) {
+    featuresIntroBreakpointQuery = window.matchMedia("(min-width: 981px)");
+    featuresIntroBreakpointQuery.addEventListener("change", () => {
+      featuresIntroPinController?.rebuild?.();
+      ScrollTrigger.refresh(true);
     });
-
-    if (index < FEATURES_INTRO_SCROLL_STEPS.length - 1) {
-      segments.push({
-        key: `${step.id}Exit`,
-        viewports: FEATURES_INTRO_DESKTOP_SEGMENT_WEIGHTS.stepExit,
-        stepId: step.id,
-      });
-    }
-  });
-
-  return segments;
-}
-
-const FEATURES_INTRO_DESKTOP_PIN_SEGMENTS = buildFeaturesIntroDesktopPinSegments();
-
-function getFeaturesIntroDesktopPinSegment(progress) {
-  const totalViewports = FEATURES_INTRO_DESKTOP_PIN_SEGMENTS.reduce((sum, segment) => sum + segment.viewports, 0);
-  let accumulated = 0;
-
-  for (const segment of FEATURES_INTRO_DESKTOP_PIN_SEGMENTS) {
-    const segmentStart = accumulated / totalViewports;
-    accumulated += segment.viewports;
-    const segmentEnd = accumulated / totalViewports;
-
-    if (progress <= segmentEnd) {
-      const span = segmentEnd - segmentStart || 1;
-      const local = (progress - segmentStart) / span;
-      return { ...segment, local: Math.max(0, Math.min(1, local)) };
-    }
   }
 
-  const lastSegment = FEATURES_INTRO_DESKTOP_PIN_SEGMENTS[FEATURES_INTRO_DESKTOP_PIN_SEGMENTS.length - 1];
-  return { ...lastSegment, local: 1 };
-}
+  featuresIntroPinController = {
+    rebuild() {
+      const savedMobileStep = featuresIntroState.mobileStepIndex;
+      const savedDesktopStep = featuresIntroState.desktopStepIndex;
 
-function getFeaturesIntroDesktopPinTotalViewports() {
-  return FEATURES_INTRO_DESKTOP_PIN_SEGMENTS.reduce((sum, segment) => sum + segment.viewports, 0);
+      featuresIntroMobileController?.rebuild?.();
+      featuresIntroDesktopController?.rebuild?.();
+
+      featuresIntroState.mobileStepIndex = savedMobileStep;
+      featuresIntroState.desktopStepIndex = savedDesktopStep;
+
+      featuresIntroMobileController?.applyStep?.(savedMobileStep, { animate: false });
+      featuresIntroDesktopController?.applyStep?.(savedDesktopStep, { animate: false });
+    },
+  };
 }
 
 function bootFeaturesIntroDesktopPin() {
@@ -246,6 +423,7 @@ function bootFeaturesIntroDesktopPin() {
   const pinShell = document.querySelector("#sl-features-intro-pin-shell");
   const intro = document.querySelector("#sl-features-intro-copy");
   const desktopQuery = window.matchMedia("(min-width: 981px)");
+  const snapProgressValues = buildFeaturesIntroSnapValues(FEATURES_INTRO_DESKTOP_STEP_COUNT);
 
   const stepTexts = Object.fromEntries(
     FEATURES_INTRO_SCROLL_STEPS.map((step) => [
@@ -261,6 +439,8 @@ function bootFeaturesIntroDesktopPin() {
     ]),
   );
 
+  let desktopScrollTrigger = null;
+
   function setStepTextState(textEl, { alpha = 0, visible = false, hidden = true, x = 0, y = 0 } = {}) {
     if (!textEl) return;
 
@@ -269,22 +449,16 @@ function bootFeaturesIntroDesktopPin() {
     textEl.setAttribute("aria-hidden", hidden ? "true" : "false");
   }
 
-  function setDesktopTextHidden(textEl) {
-    setStepTextState(textEl, {
-      alpha: 0,
-      visible: false,
-      hidden: true,
-    });
-  }
-
-  function setDesktopTextVisible(textEl) {
-    setStepTextState(textEl, { alpha: 1, visible: true, hidden: false, x: 0, y: 0 });
-  }
-
   function setStepPhoneState(phoneEl, { alpha = 0, x = 0, y = 0, rotation = 0 } = {}) {
     if (!phoneEl) return;
 
     gsap.set(phoneEl, { autoAlpha: alpha, x, y, rotation });
+  }
+
+  function hideAllStepTexts() {
+    FEATURES_INTRO_SCROLL_STEPS.forEach((step) => {
+      setStepTextState(stepTexts[step.id], { alpha: 0, visible: false, hidden: true });
+    });
   }
 
   function setDesktopPhoneHidden(phoneEl) {
@@ -300,15 +474,33 @@ function bootFeaturesIntroDesktopPin() {
     setStepPhoneState(phoneEl, { alpha: 1, x: 0, y: 0, rotation: 0 });
   }
 
-  function hideAllStepTexts() {
-    FEATURES_INTRO_SCROLL_STEPS.forEach((step) => {
-      setStepTextState(stepTexts[step.id], { alpha: 0, visible: false, hidden: true });
-    });
+  function setDesktopTextHidden(textEl) {
+    setStepTextState(textEl, { alpha: 0, visible: false, hidden: true });
   }
 
-  function resetDesktopPhones() {
+  function setDesktopTextVisible(textEl) {
+    setStepTextState(textEl, { alpha: 1, visible: true, hidden: false, x: 0, y: 0 });
+  }
+
+  function setDesktopStepVisible(step) {
+    setDesktopPhoneVisible(stepPhones[step.id]);
+    setDesktopTextVisible(stepTexts[step.id]);
+  }
+
+  function setDesktopStepHidden(step) {
+    setDesktopPhoneHidden(stepPhones[step.id]);
+    setDesktopTextHidden(stepTexts[step.id]);
+  }
+
+  function applyDesktopStepInstant(stepIndex) {
+    if (!intro) return;
+
+    gsap.set(intro, { autoAlpha: 1, yPercent: 0, clearProps: "transform" });
+    intro.removeAttribute("aria-hidden");
+    hideAllStepTexts();
+
     FEATURES_INTRO_SCROLL_STEPS.forEach((step, index) => {
-      if (index === 0) {
+      if (index === stepIndex) {
         setDesktopStepVisible(step);
         return;
       }
@@ -317,34 +509,11 @@ function bootFeaturesIntroDesktopPin() {
     });
   }
 
-  function resetDesktopLayers() {
-    if (!intro) return;
-
-    gsap.set(intro, { autoAlpha: 1, yPercent: 0, clearProps: "transform" });
-    intro.removeAttribute("aria-hidden");
-    hideAllStepTexts();
-    resetDesktopPhones();
-  }
-
-  function destroyFeaturesIntroDesktopScroll() {
-    featuresIntroDesktopController?.timeline?.scrollTrigger?.kill();
-    featuresIntroDesktopController?.timeline?.kill();
-    featuresIntroDesktopController = null;
-    wrap?.classList.remove("is-features-intro-desktop-pin-active");
-  }
-
-  function getStepIndex(stepId) {
-    return FEATURES_INTRO_SCROLL_STEPS.findIndex((step) => step.id === stepId);
-  }
-
   function getDesktopPhoneEnterProgress(progress) {
-    if (progress <= FEATURES_INTRO_DESKTOP_PHONE_ENTER_SCROLL_DELAY) return 0;
+    const enterDelay = FEATURES_INTRO_DESKTOP_PHONE_EXIT_FADE_END * 0.7;
+    if (progress <= enterDelay) return 0;
 
-    return Math.min(
-      1,
-      (progress - FEATURES_INTRO_DESKTOP_PHONE_ENTER_SCROLL_DELAY) /
-        (1 - FEATURES_INTRO_DESKTOP_PHONE_ENTER_SCROLL_DELAY),
-    );
+    return Math.min(1, (progress - enterDelay) / (1 - enterDelay));
   }
 
   function applyDesktopStepTransition(currentStep, nextStep, progress) {
@@ -393,64 +562,96 @@ function bootFeaturesIntroDesktopPin() {
     }
   }
 
-  function setDesktopStepVisible(step) {
-    setDesktopPhoneVisible(stepPhones[step.id]);
-    setDesktopTextVisible(stepTexts[step.id]);
+  function resetDesktopLayers() {
+    featuresIntroState.desktopStepIndex = 0;
+    applyDesktopStepInstant(0);
   }
 
-  function setDesktopStepHidden(step) {
-    setDesktopPhoneHidden(stepPhones[step.id]);
-    setDesktopTextHidden(stepTexts[step.id]);
+  function destroyFeaturesIntroDesktopScroll() {
+    desktopScrollTrigger?.kill();
+    desktopScrollTrigger = null;
+    featuresIntroDesktopController = null;
+    wrap?.classList.remove("is-features-intro-desktop-pin-active");
   }
 
-  function syncFeaturesIntroDesktopLayers(progress) {
-    if (!intro || !desktopQuery.matches) return;
+  function scrollDesktopToStep(stepIndex) {
+    if (!desktopScrollTrigger || prefersReducedMotion) return;
 
-    const { key, local, stepId } = getFeaturesIntroDesktopPinSegment(progress);
+    scrollDesktopToProgress(getFeaturesIntroSnapProgress(stepIndex, FEATURES_INTRO_DESKTOP_STEP_COUNT));
+  }
 
-    if (key.endsWith("Fade")) {
-      FEATURES_INTRO_SCROLL_STEPS.forEach((step) => {
-        if (step.id === stepId) {
-          setDesktopStepVisible(step);
-          return;
-        }
+  function scrollDesktopToProgress(progress) {
+    if (!desktopScrollTrigger || prefersReducedMotion) return;
 
-        setDesktopStepHidden(step);
-      });
+    const clampedProgress = Math.max(0, Math.min(1, progress));
+    desktopScrollTrigger.scroll(
+      desktopScrollTrigger.start + (desktopScrollTrigger.end - desktopScrollTrigger.start) * clampedProgress,
+    );
+  }
+
+  function animateDesktopStepChange(fromIndex, toIndex) {
+    if (fromIndex === toIndex || featuresIntroState.isAnimating) {
+      applyDesktopStepInstant(toIndex);
       return;
     }
 
-    if (key.endsWith("Hold")) {
-      FEATURES_INTRO_SCROLL_STEPS.forEach((step) => {
-        if (step.id === stepId) {
-          setDesktopStepVisible(step);
-          return;
-        }
-
-        setDesktopStepHidden(step);
-      });
+    if (Math.abs(toIndex - fromIndex) !== 1 || prefersReducedMotion) {
+      applyDesktopStepInstant(toIndex);
       return;
     }
 
-    if (key.endsWith("Exit")) {
-      const stepIndex = getStepIndex(stepId);
-      const currentStep = FEATURES_INTRO_SCROLL_STEPS[stepIndex];
-      const nextStep = FEATURES_INTRO_SCROLL_STEPS[stepIndex + 1] ?? null;
+    const fromStep = FEATURES_INTRO_SCROLL_STEPS[fromIndex];
+    const toStep = FEATURES_INTRO_SCROLL_STEPS[toIndex];
+    const proxy = { progress: 0 };
 
-      if (nextStep) {
-        applyDesktopStepTransition(currentStep, nextStep, local);
-        return;
-      }
+    featuresIntroState.isAnimating = true;
 
-      FEATURES_INTRO_SCROLL_STEPS.forEach((step) => {
-        if (step.id === stepId) {
-          setDesktopStepVisible(step);
-          return;
-        }
+    gsap.timeline({
+      onComplete() {
+        applyDesktopStepInstant(toIndex);
+        featuresIntroState.isAnimating = false;
+      },
+    }).to(proxy, {
+      progress: 1,
+      duration: 0.65,
+      ease: "power1.inOut",
+      onUpdate() {
+        applyDesktopStepTransition(fromStep, toStep, proxy.progress);
+      },
+    });
+  }
 
-        setDesktopStepHidden(step);
-      });
+  function applyDesktopStep(stepIndex, { animate = false } = {}) {
+    if (!desktopQuery.matches || !intro) return;
+
+    const step = Math.max(0, Math.min(FEATURES_INTRO_DESKTOP_STEP_COUNT - 1, stepIndex));
+    const previousStep = featuresIntroState.desktopStepIndex;
+
+    if (animate && previousStep !== step) {
+      animateDesktopStepChange(previousStep, step);
+    } else {
+      applyDesktopStepInstant(step);
     }
+
+    featuresIntroState.desktopStepIndex = step;
+  }
+
+  function syncDesktopStepFromScroll(self) {
+    if (!desktopQuery.matches || featuresIntroState.isAnimating) return;
+
+    const step = getFeaturesIntroStepFromProgress(self.progress, FEATURES_INTRO_DESKTOP_STEP_COUNT);
+
+    if (step === featuresIntroState.desktopStepIndex) return;
+
+    const previousStep = featuresIntroState.desktopStepIndex;
+    featuresIntroState.desktopStepIndex = step;
+
+    if (Math.abs(step - previousStep) === 1 && !prefersReducedMotion) {
+      animateDesktopStepChange(previousStep, step);
+      return;
+    }
+
+    applyDesktopStepInstant(step);
   }
 
   function buildFeaturesIntroDesktopScroll() {
@@ -458,47 +659,53 @@ function bootFeaturesIntroDesktopPin() {
     resetDesktopLayers();
 
     if (!desktopQuery.matches || !wrap || !pinShell || !intro) {
+      featuresIntroDesktopController = { rebuild: buildFeaturesIntroDesktopScroll, applyStep: applyDesktopStep, scrollToStep: scrollDesktopToStep };
       return;
     }
 
-    syncFeaturesIntroDesktopLayers(0);
+    applyDesktopStep(featuresIntroState.desktopStepIndex, { animate: false });
 
-    const animationViewports = getFeaturesIntroDesktopPinTotalViewports();
-    const timeline = gsap.timeline({
-      scrollTrigger: {
-        id: "features-intro-desktop-scroll",
-        trigger: wrap,
-        start: "top top",
-        end: () => `+=${window.innerHeight * animationViewports}`,
-        pin: pinShell,
-        pinSpacing: true,
-        scrub: true,
-        anticipatePin: 0,
-        invalidateOnRefresh: true,
-        onToggle(self) {
-          wrap.classList.toggle("is-features-intro-desktop-pin-active", self.isActive);
-
-          if (!self.isActive && self.direction < 0) {
-            resetDesktopLayers();
-            return;
-          }
-
-          if (self.isActive) {
-            syncFeaturesIntroDesktopLayers(self.progress);
-          }
+    desktopScrollTrigger = ScrollTrigger.create({
+      id: "features-intro-desktop-scroll",
+      trigger: wrap,
+      start: "top top",
+      end: () => `+=${window.innerHeight * FEATURES_INTRO_DESKTOP_PIN_VIEWPORTS}`,
+      pin: pinShell,
+      pinSpacing: true,
+      anticipatePin: 0,
+      invalidateOnRefresh: true,
+      snap: {
+        snapTo(progress) {
+          return nearestClubSelectorSnap(progress, snapProgressValues);
         },
-        onUpdate(self) {
-          syncFeaturesIntroDesktopLayers(self.progress);
-        },
+        duration: { min: 0.15, max: 0.5 },
+        delay: 0.08,
+        ease: "power1.inOut",
       },
+      onToggle(self) {
+        wrap.classList.toggle("is-features-intro-desktop-pin-active", self.isActive);
+
+        if (!self.isActive && self.direction < 0) {
+          resetDesktopLayers();
+        }
+      },
+      onUpdate: syncDesktopStepFromScroll,
+      onSnapComplete: syncDesktopStepFromScroll,
     });
 
-    timeline.to({}, { duration: 1 });
-
-    featuresIntroDesktopController = { timeline, rebuild: buildFeaturesIntroDesktopScroll };
+    featuresIntroDesktopController = {
+      scrollTrigger: desktopScrollTrigger,
+      rebuild: buildFeaturesIntroDesktopScroll,
+      applyStep: applyDesktopStep,
+      scrollToStep: scrollDesktopToStep,
+    };
   }
 
-  featuresIntroDesktopController = { rebuild: buildFeaturesIntroDesktopScroll };
+  featuresIntroDesktopController = {
+    rebuild: buildFeaturesIntroDesktopScroll,
+    applyStep: applyDesktopStep,
+    scrollToStep: scrollDesktopToStep,
+  };
 }
 
 function bootFeaturesIntroMobilePin() {
@@ -508,6 +715,7 @@ function bootFeaturesIntroMobilePin() {
   const pinShell = document.querySelector("#sl-features-intro-pin-shell");
   const intro = document.querySelector("#sl-features-intro-copy");
   const mobileQuery = window.matchMedia("(max-width: 980px)");
+  const snapProgressValues = buildFeaturesIntroSnapValues(FEATURES_INTRO_MOBILE_STEP_COUNT);
 
   const stepTexts = Object.fromEntries(
     FEATURES_INTRO_SCROLL_STEPS.map((step) => [
@@ -523,6 +731,29 @@ function bootFeaturesIntroMobilePin() {
     ]),
   );
 
+  const stepPhoneLayers = Object.fromEntries(
+    FEATURES_INTRO_SCROLL_STEPS.map((step) => [
+      step.id,
+      wrap?.querySelector(`.sl-features-step-phone[data-feature-step="${step.id}"]`) ?? null,
+    ]),
+  );
+
+  let mobileScrollTrigger = null;
+
+  function resetMobilePhoneShells() {
+    Object.values(stepPhones).forEach((phone) => {
+      if (!phone) return;
+      gsap.set(phone, { x: 0, y: 0, rotation: 0, clearProps: "transform" });
+    });
+  }
+
+  function resetMobilePhoneLayers() {
+    Object.values(stepPhoneLayers).forEach((layer) => {
+      if (!layer) return;
+      gsap.set(layer, { clearProps: "opacity,visibility,transform" });
+    });
+  }
+
   function setStepTextState(
     textEl,
     { alpha = 0, yPercent = 0, visible = false, hidden = true } = {},
@@ -534,10 +765,14 @@ function bootFeaturesIntroMobilePin() {
     textEl.setAttribute("aria-hidden", hidden ? "true" : "false");
   }
 
-  function setStepPhoneState(phoneEl, { alpha = 0, x = 0, rotation = 0 } = {}) {
+  function setStepPhoneState(phoneEl, layerEl, { alpha = 0, x = 0, rotation = 0 } = {}) {
+    if (layerEl) {
+      layerEl.setAttribute("aria-hidden", alpha > 0 ? "false" : "true");
+    }
+
     if (!phoneEl) return;
 
-    gsap.set(phoneEl, { autoAlpha: alpha, x, rotation });
+    gsap.set(phoneEl, { autoAlpha: alpha, x, y: 0, rotation });
   }
 
   function hideAllStepTexts() {
@@ -547,15 +782,19 @@ function bootFeaturesIntroMobilePin() {
   }
 
   function resetStepPhonesForMobile() {
+    resetMobilePhoneLayers();
+    resetMobilePhoneShells();
+
     FEATURES_INTRO_SCROLL_STEPS.forEach((step, index) => {
       const phone = stepPhones[step.id];
+      const layer = stepPhoneLayers[step.id];
       if (index === 0) {
-        setStepPhoneState(phone, { alpha: 1, x: 0, rotation: 0 });
+        setStepPhoneState(phone, layer, { alpha: 1, x: 0, rotation: 0 });
         return;
       }
 
       const enter = getFeaturesIntroPhoneEnterOffset(step.enterFrom);
-      setStepPhoneState(phone, { alpha: 0, x: enter.x, rotation: enter.rotation });
+      setStepPhoneState(phone, layer, { alpha: 0, x: enter.x, rotation: enter.rotation });
     });
   }
 
@@ -567,27 +806,46 @@ function bootFeaturesIntroMobilePin() {
     intro.style.width = hidden ? "100%" : "";
   }
 
-  function resetLayers() {
-    if (!intro) return;
-
-    setIntroLayoutHidden(false);
+  function applyMobileIntroStep() {
     wrap?.classList.remove("is-features-intro-steps-active");
-    gsap.set(intro, { autoAlpha: 1, yPercent: 0, y: 0, clearProps: "transform" });
+    setIntroLayoutHidden(false);
+    gsap.set(intro, { yPercent: 0, autoAlpha: 1, y: 0, clearProps: "transform" });
     intro.removeAttribute("aria-hidden");
     hideAllStepTexts();
     resetStepPhonesForMobile();
   }
 
-  function destroyFeaturesIntroScroll() {
-    featuresIntroMobileController?.timeline?.scrollTrigger?.kill();
-    featuresIntroMobileController?.timeline?.kill();
-    featuresIntroMobileController = null;
-    wrap?.classList.remove("is-features-intro-pin-active");
-    wrap?.classList.remove("is-features-intro-steps-active");
+  function applyMobileFeatureStep(featureIndex) {
+    const step = FEATURES_INTRO_SCROLL_STEPS[featureIndex];
+    if (!step) return;
+
+    wrap?.classList.add("is-features-intro-steps-active");
+    setIntroLayoutHidden(true);
+    gsap.set(intro, { yPercent: -100, autoAlpha: 0 });
+    intro.setAttribute("aria-hidden", "true");
+    hideAllStepTexts();
+    setStepTextState(stepTexts[step.id], { alpha: 1, yPercent: 0, visible: true, hidden: false });
+
+    FEATURES_INTRO_SCROLL_STEPS.forEach((entry, index) => {
+      const phone = stepPhones[entry.id];
+      const layer = stepPhoneLayers[entry.id];
+      if (index === featureIndex) {
+        setStepPhoneState(phone, layer, { alpha: 1, x: 0, rotation: 0 });
+        return;
+      }
+
+      const enter = getFeaturesIntroPhoneEnterOffset(entry.enterFrom);
+      setStepPhoneState(phone, layer, { alpha: 0, x: enter.x, rotation: enter.rotation });
+    });
   }
 
-  function getStepIndex(stepId) {
-    return FEATURES_INTRO_SCROLL_STEPS.findIndex((step) => step.id === stepId);
+  function applyMobileStepInstant(stepIndex) {
+    if (stepIndex <= 0) {
+      applyMobileIntroStep();
+      return;
+    }
+
+    applyMobileFeatureStep(stepIndex - 1);
   }
 
   function applyPhoneTransition(currentStep, nextStep, progress) {
@@ -595,13 +853,15 @@ function bootFeaturesIntroMobilePin() {
 
     const currentPhone = stepPhones[currentStep.id];
     const nextPhone = nextStep ? stepPhones[nextStep.id] : null;
+    const currentLayer = stepPhoneLayers[currentStep.id];
+    const nextLayer = nextStep ? stepPhoneLayers[nextStep.id] : null;
     const nextEnter = nextStep ? getFeaturesIntroPhoneEnterOffset(nextStep.enterFrom) : { x: 0, rotation: 0 };
     const currentExit = getFeaturesIntroPhoneEnterOffset(
       currentStep.enterFrom === "right" ? "left" : currentStep.enterFrom === "left" ? "right" : "left",
     );
 
     if (currentPhone) {
-      setStepPhoneState(currentPhone, {
+      setStepPhoneState(currentPhone, currentLayer, {
         alpha: nextPhone ? 1 - progress : 1,
         x: (currentExit.x / 3) * progress,
         rotation: (currentExit.rotation / 2) * progress,
@@ -609,7 +869,7 @@ function bootFeaturesIntroMobilePin() {
     }
 
     if (nextPhone) {
-      setStepPhoneState(nextPhone, {
+      setStepPhoneState(nextPhone, nextLayer, {
         alpha: progress,
         x: nextEnter.x * (1 - progress),
         rotation: nextEnter.rotation * (1 - progress),
@@ -617,159 +877,218 @@ function bootFeaturesIntroMobilePin() {
     }
   }
 
-  function syncFeaturesIntroLayers(progress) {
-    if (!intro || !mobileQuery.matches) return;
-
-    const { key, local, stepId } = getFeaturesIntroPinSegment(progress);
-    const isIntroPhase = key === "introHold" || key === "introExit";
-    wrap?.classList.toggle("is-features-intro-steps-active", !isIntroPhase);
-
-    if (key === "introHold") {
-      gsap.set(intro, { yPercent: 0, autoAlpha: 1 });
-      intro.removeAttribute("aria-hidden");
-      hideAllStepTexts();
-      resetStepPhonesForMobile();
+  function animateMobileStepChange(fromIndex, toIndex) {
+    if (fromIndex === toIndex || featuresIntroState.isAnimating) {
+      applyMobileStepInstant(toIndex);
       return;
     }
 
-    if (key === "introExit") {
+    if (Math.abs(toIndex - fromIndex) !== 1 || prefersReducedMotion) {
+      applyMobileStepInstant(toIndex);
+      return;
+    }
+
+    featuresIntroState.isAnimating = true;
+
+    if (fromIndex === 0 && toIndex === 1) {
+      const firstStep = FEATURES_INTRO_SCROLL_STEPS[0];
+
+      wrap?.classList.add("is-features-intro-steps-active");
       setIntroLayoutHidden(true);
-      gsap.set(intro, { yPercent: -100 * local, autoAlpha: 1 - local });
-      intro.setAttribute("aria-hidden", local > 0.5 ? "true" : "false");
       hideAllStepTexts();
-      resetStepPhonesForMobile();
+
+      gsap.timeline({
+        onComplete() {
+          applyMobileStepInstant(toIndex);
+          featuresIntroState.isAnimating = false;
+        },
+      })
+        .to(intro, { yPercent: -100, autoAlpha: 0, duration: 0.5, ease: "power1.inOut" })
+        .call(() => {
+          intro.setAttribute("aria-hidden", "true");
+        })
+        .fromTo(
+          stepTexts[firstStep.id],
+          { autoAlpha: 0, yPercent: 0 },
+          { autoAlpha: 1, yPercent: 0, duration: 0.45, ease: "power2.out" },
+          "-=0.2",
+        );
+
       return;
     }
 
+    if (fromIndex === 1 && toIndex === 0) {
+      gsap.timeline({
+        onComplete() {
+          applyMobileStepInstant(toIndex);
+          featuresIntroState.isAnimating = false;
+        },
+      })
+        .to(intro, { yPercent: 0, autoAlpha: 1, duration: 0.45, ease: "power2.out" })
+        .call(() => {
+          intro.removeAttribute("aria-hidden");
+          wrap?.classList.remove("is-features-intro-steps-active");
+          setIntroLayoutHidden(false);
+          hideAllStepTexts();
+          resetStepPhonesForMobile();
+        });
+
+      return;
+    }
+
+    const fromStep = FEATURES_INTRO_SCROLL_STEPS[fromIndex - 1];
+    const toStep = FEATURES_INTRO_SCROLL_STEPS[toIndex - 1];
+    const fromText = stepTexts[fromStep.id];
+    const toText = stepTexts[toStep.id];
+    const proxy = { progress: 0 };
+
+    wrap?.classList.add("is-features-intro-steps-active");
+    setIntroLayoutHidden(true);
     gsap.set(intro, { yPercent: -100, autoAlpha: 0 });
     intro.setAttribute("aria-hidden", "true");
-    setIntroLayoutHidden(true);
 
-    if (key.endsWith("Fade")) {
-      hideAllStepTexts();
-      setStepTextState(stepTexts[stepId], {
-        alpha: local,
-        yPercent: 0,
-        visible: local > 0,
-        hidden: local <= 0,
-      });
+    gsap.timeline({
+      onComplete() {
+        applyMobileStepInstant(toIndex);
+        featuresIntroState.isAnimating = false;
+      },
+    })
+      .to(fromText, { autoAlpha: 0, yPercent: -100, duration: 0.35, ease: "power1.inOut" })
+      .fromTo(
+        toText,
+        { autoAlpha: 0, yPercent: 0 },
+        { autoAlpha: 1, yPercent: 0, duration: 0.35, ease: "power2.out" },
+        "-=0.15",
+      )
+      .to(
+        proxy,
+        {
+          progress: 1,
+          duration: 0.55,
+          ease: "power1.inOut",
+          onUpdate() {
+            applyPhoneTransition(fromStep, toStep, Math.min(1, proxy.progress * 1.25));
+          },
+        },
+        0,
+      );
+  }
 
-      const stepIndex = getStepIndex(stepId);
-      const previousStep = stepIndex > 0 ? FEATURES_INTRO_SCROLL_STEPS[stepIndex - 1] : null;
-      const currentStep = FEATURES_INTRO_SCROLL_STEPS[stepIndex];
+  function applyMobileStep(stepIndex, { animate = false } = {}) {
+    if (!mobileQuery.matches || !intro) return;
 
-      if (previousStep) {
-        FEATURES_INTRO_SCROLL_STEPS.forEach((step) => {
-          if (step.id === currentStep.id) {
-            setStepPhoneState(stepPhones[step.id], { alpha: 1, x: 0, rotation: 0 });
-            return;
-          }
-          const enter = getFeaturesIntroPhoneEnterOffset(step.enterFrom);
-          setStepPhoneState(stepPhones[step.id], { alpha: 0, x: enter.x, rotation: enter.rotation });
-        });
-      } else if (currentStep) {
-        setStepPhoneState(stepPhones[currentStep.id], { alpha: 1, x: 0, rotation: 0 });
-        FEATURES_INTRO_SCROLL_STEPS.forEach((step, index) => {
-          if (index === stepIndex) return;
-          const enter = getFeaturesIntroPhoneEnterOffset(step.enterFrom);
-          setStepPhoneState(stepPhones[step.id], { alpha: 0, x: enter.x, rotation: enter.rotation });
-        });
-      }
+    const step = Math.max(0, Math.min(FEATURES_INTRO_MOBILE_STEP_COUNT - 1, stepIndex));
+    const previousStep = featuresIntroState.mobileStepIndex;
+
+    if (animate && previousStep !== step) {
+      animateMobileStepChange(previousStep, step);
+    } else {
+      applyMobileStepInstant(step);
+    }
+
+    featuresIntroState.mobileStepIndex = step;
+  }
+
+  function resetLayers() {
+    featuresIntroState.mobileStepIndex = 0;
+    applyMobileIntroStep();
+  }
+
+  function destroyFeaturesIntroScroll() {
+    mobileScrollTrigger?.kill();
+    mobileScrollTrigger = null;
+    featuresIntroMobileController = null;
+    wrap?.classList.remove("is-features-intro-pin-active");
+    wrap?.classList.remove("is-features-intro-steps-active");
+  }
+
+  function scrollMobileToStep(stepIndex) {
+    if (!mobileScrollTrigger || prefersReducedMotion) return;
+
+    scrollMobileToProgress(getFeaturesIntroSnapProgress(stepIndex, FEATURES_INTRO_MOBILE_STEP_COUNT));
+  }
+
+  function scrollMobileToProgress(progress) {
+    if (!mobileScrollTrigger || prefersReducedMotion) return;
+
+    const clampedProgress = Math.max(0, Math.min(1, progress));
+    mobileScrollTrigger.scroll(
+      mobileScrollTrigger.start + (mobileScrollTrigger.end - mobileScrollTrigger.start) * clampedProgress,
+    );
+  }
+
+  function syncMobileStepFromScroll(self) {
+    if (!mobileQuery.matches || featuresIntroState.isAnimating) return;
+
+    const step = getFeaturesIntroStepFromProgress(self.progress, FEATURES_INTRO_MOBILE_STEP_COUNT);
+
+    if (step === featuresIntroState.mobileStepIndex) return;
+
+    const previousStep = featuresIntroState.mobileStepIndex;
+    featuresIntroState.mobileStepIndex = step;
+
+    if (Math.abs(step - previousStep) === 1 && !prefersReducedMotion) {
+      animateMobileStepChange(previousStep, step);
       return;
     }
 
-    if (key.endsWith("Hold")) {
-      hideAllStepTexts();
-      setStepTextState(stepTexts[stepId], { alpha: 1, yPercent: 0, visible: true, hidden: false });
-
-      FEATURES_INTRO_SCROLL_STEPS.forEach((step) => {
-        if (step.id === stepId) {
-          setStepPhoneState(stepPhones[step.id], { alpha: 1, x: 0, rotation: 0 });
-          return;
-        }
-        const enter = getFeaturesIntroPhoneEnterOffset(step.enterFrom);
-        setStepPhoneState(stepPhones[step.id], { alpha: 0, x: enter.x, rotation: enter.rotation });
-      });
-      return;
-    }
-
-    if (key.endsWith("Exit")) {
-      hideAllStepTexts();
-      setStepTextState(stepTexts[stepId], {
-        alpha: 1 - local,
-        yPercent: -100 * local,
-        visible: local < 1,
-        hidden: local >= 0.5,
-      });
-
-      const stepIndex = getStepIndex(stepId);
-      const currentStep = FEATURES_INTRO_SCROLL_STEPS[stepIndex];
-      const nextStep = FEATURES_INTRO_SCROLL_STEPS[stepIndex + 1] ?? null;
-
-      if (nextStep) {
-        const phoneProgress = Math.min(1, local * 1.25);
-        applyPhoneTransition(currentStep, nextStep, phoneProgress);
-        return;
-      }
-
-      FEATURES_INTRO_SCROLL_STEPS.forEach((step) => {
-        if (step.id === stepId) {
-          setStepPhoneState(stepPhones[step.id], { alpha: 1, x: 0, rotation: 0 });
-          return;
-        }
-        const enter = getFeaturesIntroPhoneEnterOffset(step.enterFrom);
-        setStepPhoneState(stepPhones[step.id], { alpha: 0, x: enter.x, rotation: enter.rotation });
-      });
-    }
+    applyMobileStepInstant(step);
   }
 
   function buildFeaturesIntroScroll() {
     destroyFeaturesIntroScroll();
     resetLayers();
+    resetMobilePhoneLayers();
+    resetMobilePhoneShells();
 
     if (!mobileQuery.matches || !wrap || !pinShell || !intro) {
+      featuresIntroMobileController = { rebuild: buildFeaturesIntroScroll, applyStep: applyMobileStep, scrollToStep: scrollMobileToStep };
       return;
     }
 
-    syncFeaturesIntroLayers(0);
+    applyMobileStep(featuresIntroState.mobileStepIndex, { animate: false });
 
-    const animationViewports = getFeaturesIntroPinTotalViewports();
-
-    const timeline = gsap.timeline({
-    scrollTrigger: {
-        id: "features-intro-scroll",
-        trigger: wrap,
+    mobileScrollTrigger = ScrollTrigger.create({
+      id: "features-intro-scroll",
+      trigger: wrap,
       start: "top top",
-        end: () => `+=${window.innerHeight * animationViewports}`,
-        pin: pinShell,
-        pinSpacing: true,
-      scrub: true,
-        anticipatePin: 0,
-        invalidateOnRefresh: true,
-        onToggle(self) {
-          wrap.classList.toggle("is-features-intro-pin-active", self.isActive);
-
-          if (!self.isActive && self.direction < 0) {
-            resetLayers();
-            return;
-          }
-
-          if (self.isActive) {
-            syncFeaturesIntroLayers(self.progress);
-          }
+      end: () => `+=${window.innerHeight * FEATURES_INTRO_MOBILE_PIN_VIEWPORTS}`,
+      pin: pinShell,
+      pinSpacing: true,
+      anticipatePin: 0,
+      invalidateOnRefresh: true,
+      snap: {
+        snapTo(progress) {
+          return nearestClubSelectorSnap(progress, snapProgressValues);
         },
-        onUpdate(self) {
-          syncFeaturesIntroLayers(self.progress);
-        },
-    },
-  });
+        duration: { min: 0.15, max: 0.5 },
+        delay: 0.08,
+        ease: "power1.inOut",
+      },
+      onToggle(self) {
+        wrap.classList.toggle("is-features-intro-pin-active", self.isActive);
 
-    timeline.to({}, { duration: 1 });
+        if (!self.isActive && self.direction < 0) {
+          resetLayers();
+        }
+      },
+      onUpdate: syncMobileStepFromScroll,
+      onSnapComplete: syncMobileStepFromScroll,
+    });
 
-    featuresIntroMobileController = { timeline, rebuild: buildFeaturesIntroScroll };
+    featuresIntroMobileController = {
+      scrollTrigger: mobileScrollTrigger,
+      rebuild: buildFeaturesIntroScroll,
+      applyStep: applyMobileStep,
+      scrollToStep: scrollMobileToStep,
+    };
   }
 
-  featuresIntroMobileController = { rebuild: buildFeaturesIntroScroll };
+  featuresIntroMobileController = {
+    rebuild: buildFeaturesIntroScroll,
+    applyStep: applyMobileStep,
+    scrollToStep: scrollMobileToStep,
+  };
 }
 
 function rebuildMobileScrollPins() {
@@ -933,6 +1252,34 @@ function getScalerAvailableSize(scaler) {
   };
 }
 
+function getClubStoryPhoneScalerSize(screen) {
+  const scaler = screen?.querySelector(".sl-club-story-app-scaler");
+  if (!scaler || !screen) return { width: 0, height: 0 };
+
+  const rect = scaler.getBoundingClientRect();
+  if (rect.width > 1 && rect.height > 1) {
+    return { width: rect.width, height: rect.height };
+  }
+
+  const screenRect = screen.getBoundingClientRect();
+  if (screenRect.width <= 0 || screenRect.height <= 0) {
+    return { width: 0, height: 0 };
+  }
+
+  const styles = getComputedStyle(screen);
+  const safeTopMatch = styles.getPropertyValue("--phone-safe-top").trim().match(/^([\d.]+)%$/);
+  const safeBottomMatch = styles.getPropertyValue("--phone-safe-bottom").trim().match(/^([\d.]+)%$/);
+  const safeTop = safeTopMatch ? Number.parseFloat(safeTopMatch[1]) : 7.5;
+  const safeBottom = safeBottomMatch ? Number.parseFloat(safeBottomMatch[1]) : 5.5;
+  const safeTopPx = (safeTop / 100) * screenRect.height;
+  const safeBottomPx = (safeBottom / 100) * screenRect.height;
+
+  return {
+    width: screenRect.width,
+    height: Math.max(0, screenRect.height - safeTopPx - safeBottomPx),
+  };
+}
+
 function getClubSelectorAppScaleFit() {
   return window.matchMedia("(max-width: 980px)").matches ? "cover" : "contain";
 }
@@ -950,6 +1297,30 @@ function applyClubAppScale(scaler, viewport, availableWidth, availableHeight, fi
   }
 }
 
+function applyStoryPhoneScale(scaler, viewport, availableWidth, availableHeight) {
+  if (!scaler || !viewport || availableWidth <= 0) return;
+
+  const scale = availableWidth / CLUB_SELECTOR_APP.width;
+  const slot = scaler.querySelector(".sl-club-story-app-scale-slot");
+  const scaledHeight = CLUB_SELECTOR_APP.height * scale;
+  const screen = scaler.closest(".sl-club-selector-story-phone-screen");
+
+  viewport.style.setProperty("--sl-app-scale", String(scale));
+  viewport.style.left = "0px";
+
+  if (screen) {
+    screen.style.setProperty("--sl-app-scale", String(scale));
+  }
+
+  if (slot) {
+    slot.style.width = "100%";
+    slot.style.height = "100%";
+  }
+
+  scaler.style.removeProperty("height");
+  scaler.style.removeProperty("width");
+}
+
 function syncClubSelectorAppViewport() {
   const scaler = document.querySelector("#sl-club-selector-app-scaler");
   const viewport = document.querySelector("#sl-club-selector-app-viewport");
@@ -960,14 +1331,32 @@ function syncClubSelectorAppViewport() {
   applyClubAppScale(scaler, viewport, width, height, getClubSelectorAppScaleFit());
 }
 
+function scheduleStoryPhoneScaleSync(screen, attempts = 3) {
+  if (!screen || attempts <= 0) return;
+
+  syncClubStoryPhoneScaleForScreen(screen);
+
+  if (attempts > 1) {
+    window.requestAnimationFrame(() => {
+      syncClubStoryPhoneScaleForScreen(screen);
+      window.setTimeout(() => scheduleStoryPhoneScaleSync(screen, attempts - 1), 100);
+    });
+  }
+}
+
 function syncClubStoryPhoneScaleForScreen(screen) {
-  const scaler = screen.querySelector(".sl-club-story-app-scaler");
-  const viewport = screen.querySelector(".sl-app-home-viewport");
+  const scaler = screen?.querySelector(".sl-club-story-app-scaler");
+  const viewport = screen?.querySelector(".sl-app-home-viewport");
 
   if (!scaler || !viewport) return;
 
-  const { width, height } = getScalerAvailableSize(scaler);
-  applyClubAppScale(scaler, viewport, width, height, getClubSelectorAppScaleFit());
+  const { width, height } = getClubStoryPhoneScalerSize(screen);
+  if (width <= 1 || height <= 1) {
+    window.requestAnimationFrame(() => syncClubStoryPhoneScaleForScreen(screen));
+    return;
+  }
+
+  applyStoryPhoneScale(scaler, viewport, width, height);
 }
 
 function syncClubSelectorPhoneScales() {
@@ -980,18 +1369,22 @@ function syncClubSelectorPhoneScales() {
 }
 
 function bootClubSelectorAppViewport() {
-  const sync = () => syncClubSelectorAppViewport();
+  const sync = () => syncClubSelectorPhoneScales();
   sync();
 
   const sharedPhone = document.querySelector("#sl-club-selector-shared-phone");
-  const screen = document.querySelector(".sl-club-selector-pick-screen");
-  const scaler = document.querySelector("#sl-club-selector-app-scaler");
+  const pickScreen = document.querySelector(".sl-club-selector-pick-screen");
+  const storyScreen = document.querySelector(".sl-club-selector-story-phone-screen[data-club-story-feed]");
+  const pickScaler = document.querySelector("#sl-club-selector-app-scaler");
+  const storyScaler = storyScreen?.querySelector(".sl-club-story-app-scaler");
 
   if (window.ResizeObserver) {
     const observer = new ResizeObserver(sync);
     if (sharedPhone) observer.observe(sharedPhone);
-    if (screen) observer.observe(screen);
-    if (scaler) observer.observe(scaler);
+    if (pickScreen) observer.observe(pickScreen);
+    if (storyScreen) observer.observe(storyScreen);
+    if (pickScaler) observer.observe(pickScaler);
+    if (storyScaler) observer.observe(storyScaler);
     return;
   }
 
@@ -1024,6 +1417,10 @@ const CLUB_PRIMARY_COLORS = {
 const CLUB_STORY_FEED_SECTION_COUNT = 3;
 const CLUB_STORY_SOCIAL_STEP_INDEX = 3;
 const CLUB_STORY_STEP_COUNT = 4;
+const CLUB_STORY_LIVE_STEP_INDEX = 0;
+const STORY_PHONE_TOP_STORIES_LIMIT = 8;
+const STORY_PHONE_PODCASTS_LIMIT = 8;
+const STORY_PHONE_VIDEOS_LIMIT = 7;
 
 function getStorySocialProgressThreshold(stepCount = CLUB_STORY_STEP_COUNT) {
   return (stepCount - 1) / stepCount;
@@ -1074,11 +1471,59 @@ function getFeedScrollTopForStoryProgress(feed, storyProgress) {
 }
 
 function getCurrentStoryProgressFromPage() {
-  const trigger = clubStoryPhoneScroll.getScrollTrigger?.();
-  const pickProgressCap = clubStoryPhoneScroll.getPickProgressCap?.();
-  if (!trigger || typeof pickProgressCap !== "number") return 0;
+  if (!clubSelectorState.storyUnlocked) return 0;
 
-  return Math.min(1, Math.max(0, (trigger.progress - pickProgressCap) / (1 - pickProgressCap)));
+  return getClubSelectorStoryStepProgress(clubSelectorState.currentStoryStep);
+}
+
+const CLUB_SELECTOR_PICK_SCROLL_VIEWPORTS = 0.5;
+const CLUB_SELECTOR_STORY_SCROLL_VIEWPORTS = 3;
+const CLUB_SELECTOR_TOTAL_SCROLL_VIEWPORTS =
+  CLUB_SELECTOR_PICK_SCROLL_VIEWPORTS + CLUB_SELECTOR_STORY_SCROLL_VIEWPORTS;
+const CLUB_SELECTOR_PICK_PROGRESS_CAP =
+  CLUB_SELECTOR_PICK_SCROLL_VIEWPORTS / CLUB_SELECTOR_TOTAL_SCROLL_VIEWPORTS;
+
+function getClubSelectorStoryProgressSpan(stepCount = CLUB_STORY_STEP_COUNT) {
+  return (1 - CLUB_SELECTOR_PICK_PROGRESS_CAP) / stepCount;
+}
+
+function getClubSelectorStoryStepProgress(stepIndex, stepCount = CLUB_STORY_STEP_COUNT) {
+  return CLUB_SELECTOR_PICK_PROGRESS_CAP + getClubSelectorStoryProgressSpan(stepCount) * stepIndex;
+}
+
+function getClubSelectorStoryStepFromProgress(progress, stepCount = CLUB_STORY_STEP_COUNT) {
+  if (progress < CLUB_SELECTOR_PICK_PROGRESS_CAP) return 0;
+
+  let bestStep = 0;
+  let bestDistance = Infinity;
+
+  for (let index = 0; index < stepCount; index += 1) {
+    const stepProgress = getClubSelectorStoryStepProgress(index, stepCount);
+    const distance = Math.abs(progress - stepProgress);
+
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestStep = index;
+    }
+  }
+
+  return bestStep;
+}
+
+function nearestClubSelectorSnap(progress, snapValues) {
+  return snapValues.reduce((nearest, value) =>
+    Math.abs(value - progress) < Math.abs(nearest - progress) ? value : nearest,
+  );
+}
+
+function buildClubSelectorSnapValues(stepCount = CLUB_STORY_STEP_COUNT) {
+  const values = [0];
+
+  for (let index = 0; index < stepCount; index += 1) {
+    values.push(getClubSelectorStoryStepProgress(index, stepCount));
+  }
+
+  return values;
 }
 
 const CLUB_STORY_APP_ASSETS = {
@@ -1089,55 +1534,54 @@ const CLUB_STORY_APP_ASSETS = {
   search: "assets/app/Search-Icon.png",
 };
 
-const TOP_STORIES_SAMPLE_FEED = {
-  items: [
-    {
-      id: "1",
-      layout: "featured",
-      publicationTag: "DAILY MAIL SPORT",
-      title:
-        "England facing defensive crisis with Reece James and Jarell Quansah to miss last-32 clash with DR Congo – as Thomas Tuchel vows to entertain the kids in early kick-off",
-      excerpt:
-        "England faces a defensive crisis with Reece James and Jarell Quansah missing the clash against DR Congo. Manager Thomas Tuchel aims to entertain the kids during the early kick-off.",
-      imageUrl:
-        "https://wsrv.nl/?url=https%3A%2F%2Fi.dailymail.com%2F1s%2F2026%2F06%2F30%2F23%2F109705833-0-image-a-30_1782859501425.jpg&w=860&h=400&fit=cover&output=jpg&q=75",
-    },
-    {
-      id: "2",
-      layout: "row",
-      publicationTag: "BBC SPORT",
-      title: "Rosenior nears management return at Paris FC",
-      imageUrl:
-        "https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/757d/live/747765b0-7081-11f1-a866-abbad6b6b076.jpg",
-    },
-    {
-      id: "3",
-      layout: "row",
-      publicationTag: "ESPN FC",
-      title: "Chelsea avoid hefty UEFA fine for overspending",
-      imageUrl:
-        "https://a1.espncdn.com/combiner/i?img=%2Fphoto%2F2025%2F1227%2Fr1594038_1296x729_16-9.jpg&w=200&h=200&scale=crop&cquality=80&location=origin",
-    },
-    {
-      id: "4",
-      layout: "row",
-      publicationTag: "BBC SPORT",
-      title: "PSG set Barcola price – Wednesday's gossip",
-      imageUrl:
-        "https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/0b76/live/f85e4820-74bf-11f1-8e1d-bbbb1017d210.png",
-    },
-    {
-      id: "5",
-      layout: "row",
-      publicationTag: "THE GUARDIAN",
-      title: "Newcastle, Chelsea and Aston Villa fined for breaching European financial rules",
-      imageUrl: null,
-      teamColor: "#374151",
-      teamAbbrev: "NEW",
-    },
-  ],
-  seeMoreLabel: "See more",
-};
+const APP_FOOTER_HOME_ICON = `<svg class="sl-app-home-footer-icon" viewBox="0 0 35 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M17.5 3 4 13.2V21h8.4v-6.3h10.2V21H31v-7.8L17.5 3z"/></svg>`;
+
+const APP_FOOTER_MATCHES_ICON = `<svg class="sl-app-home-footer-icon" viewBox="0 0 35 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6 5h23a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm0 2v10h23V7H6zm3 2h5v2H9V9zm8 0h5v2h-5V9zm-8 4h5v2H9v-2zm8 0h5v2h-5v-2z"/></svg>`;
+
+const APP_FOOTER_ALERTS_ICON = `<svg class="sl-app-home-footer-icon" viewBox="0 0 35 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M17.5 4a5.5 5.5 0 0 0-5.5 5.5v3.1l-1.4 2.8a1 1 0 0 0 .9 1.4h11.9a1 1 0 0 0 .9-1.4l-1.4-2.8V9.5A5.5 5.5 0 0 0 17.5 4zm-2.2 13.5h4.4a2.2 2.2 0 1 1-4.4 0z"/></svg>`;
+
+const APP_FOOTER_MORE_ICON = `<svg class="sl-app-home-footer-icon" viewBox="0 0 35 24" aria-hidden="true" focusable="false"><circle fill="currentColor" cx="8.5" cy="12" r="2"/><circle fill="currentColor" cx="17.5" cy="12" r="2"/><circle fill="currentColor" cx="26.5" cy="12" r="2"/></svg>`;
+
+const APP_FOOTER_CLUB_ICON = `<span class="sl-app-home-footer-club-mark">S</span>`;
+
+function buildAppFooterNavigationMarkup() {
+  return `
+    <div class="sl-app-home-footer" id="app-footer-navigation" data-testid="app-footer-navigation" aria-hidden="true">
+      <div class="sl-app-home-footer-inner">
+        <div class="sl-app-home-footer-item is-active" data-testid="app-footer-nav-home">
+          <div class="sl-app-home-footer-icon-wrap" data-testid="footer-nav-home">
+            ${APP_FOOTER_HOME_ICON}
+          </div>
+          <span class="sl-app-home-footer-label">HOME</span>
+        </div>
+        <div class="sl-app-home-footer-item" data-testid="app-footer-nav-matches">
+          <div class="sl-app-home-footer-icon-wrap" data-testid="footer-nav-matches">
+            ${APP_FOOTER_MATCHES_ICON}
+          </div>
+          <span class="sl-app-home-footer-label">MATCHES</span>
+        </div>
+        <div class="sl-app-home-footer-item sl-app-home-footer-item--club" data-testid="app-footer-nav-club">
+          <div class="sl-app-home-footer-club-badge" data-testid="footer-nav-club">
+            ${APP_FOOTER_CLUB_ICON}
+          </div>
+          <span class="sl-app-home-footer-label">CLUB</span>
+        </div>
+        <div class="sl-app-home-footer-item" data-testid="app-footer-nav-messages">
+          <div class="sl-app-home-footer-icon-wrap" data-testid="footer-nav-alerts">
+            ${APP_FOOTER_ALERTS_ICON}
+          </div>
+          <span class="sl-app-home-footer-label">ALERTS</span>
+        </div>
+        <div class="sl-app-home-footer-item" data-testid="app-footer-nav-more">
+          <div class="sl-app-home-footer-icon-wrap" data-testid="footer-nav-more">
+            ${APP_FOOTER_MORE_ICON}
+          </div>
+          <span class="sl-app-home-footer-label">MORE</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
 const PODCAST_HEADSET_ICON = `<svg class="sl-app-podcast-headset-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 1a9 9 0 0 0-9 9v7c0 1.66 1.34 3 3 3h1v-8H5a7 7 0 0 1 14 0h-2v8h1c1.66 0 3-1.34 3-3v-7a9 9 0 0 0-9-9zm-3 17h6v2H9v-2z"/></svg>`;
 
@@ -1145,176 +1589,15 @@ const PODCAST_PLAY_ICON = `<svg class="sl-app-podcast-play-icon" viewBox="0 0 24
 
 const PODCAST_MIC_ICON = `<svg class="sl-app-podcast-mic-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>`;
 
-const PODCASTS_SAMPLE_FEED = {
-  sectionTitle: "Recent Podcasts",
-  episodes: [
-    {
-      id: "94453",
-      seriesName: "THE ATHLETIC FC PODCAST",
-      title: "Germany hit new low + Ornstein transfer latest",
-      duration: "42 min",
-      date: "30 Jun 2026",
-      coverUrl:
-        "https://wsrv.nl/?url=https%3A%2F%2Fassets.pippa.io%2Fshows%2F6818be7d1d28d62313ac8ef3%2F1782819293273-501a24b7-7c4d-4bf6-b1a1-f2197331b6a1.jpeg&w=240&h=240&fit=cover&output=jpg&q=75",
-    },
-    {
-      id: "93507",
-      seriesName: "OUTSPOKEN WITH WHITE AND JORDAN",
-      title: "Steve Clarke Out, Maresca In At Manchester City & AJ vs Fury Preview",
-      duration: "50 min",
-      date: "29 Jun 2026",
-      coverUrl:
-        "https://wsrv.nl/?url=https%3A%2F%2Fassets.pippa.io%2Fshows%2F61ba21f51a8cbe75bb3cf280%2F1668780831114-f276576b8d075757da08daea3cd783e3.jpeg&w=240&h=240&fit=cover&output=jpg&q=75",
-    },
-    {
-      id: "93398",
-      seriesName: "THE REDMEN TV - LIVERPOOL FC PODCAST",
-      title: "Liverpool Fans REACT to WILD Chelsea statement on Man City's new boss Enzo Maresca!",
-      duration: "11 min",
-      date: "29 Jun 2026",
-      coverUrl:
-        "https://wsrv.nl/?url=https%3A%2F%2Fassets.pippa.io%2Fshows%2F611e92b606c05e0b50f40b2b%2F1747049635661-c32e5f61-402f-48b9-ab63-645732a3de6b.jpeg&w=240&h=240&fit=cover&output=jpg&q=75",
-    },
-    {
-      id: "92934",
-      seriesName: "FOOTBALL DAILY",
-      title: "World Cup: César Azpilicueta on Yamal, Dechamps & Tuchel",
-      duration: "31 min",
-      date: "29 Jun 2026",
-      coverUrl:
-        "https://wsrv.nl/?url=http%3A%2F%2Fichef.bbci.co.uk%2Fimages%2Fic%2F3000x3000%2Fp0ntgrn4.jpg&w=240&h=240&fit=cover&output=jpg&q=75",
-    },
-    {
-      id: "88887",
-      seriesName: "OUTSPOKEN WITH WHITE AND JORDAN",
-      title: "Scotland On The Brink and John Terry's England Verdict!",
-      duration: "58 min",
-      date: "25 Jun 2026",
-      coverUrl:
-        "https://wsrv.nl/?url=https%3A%2F%2Fassets.pippa.io%2Fshows%2F61ba21f51a8cbe75bb3cf280%2F1668780831114-f276576b8d075757da08daea3cd783e3.jpeg&w=240&h=240&fit=cover&output=jpg&q=75",
-    },
-    {
-      id: "85915",
-      seriesName: "STRAIGHT OUTTA COBHAM: THE ATHLETIC FC'S CHELSEA SHOW",
-      title: "Midfield Audit: What's happening with Enzo Fernandez?",
-      duration: "1 hr 1 min",
-      date: "24 Jun 2026",
-      coverUrl:
-        "https://wsrv.nl/?url=https%3A%2F%2Fassets.pippa.io%2Fshows%2F681ccb505acb8b715f1f1330%2Fshow-cover.png&w=240&h=240&fit=cover&output=jpg&q=75",
-    },
-    {
-      id: "82586",
-      seriesName: "THE ATHLETIC FC PODCAST",
-      title: "How far can Pochettino take the USA?",
-      duration: "39 min",
-      date: "20 Jun 2026",
-      coverUrl:
-        "https://wsrv.nl/?url=https%3A%2F%2Fassets.pippa.io%2Fshows%2F6818be7d1d28d62313ac8ef3%2F1780908531790-dc4761a0-ffde-45cc-a794-1639ef472007.jpeg&w=240&h=240&fit=cover&output=jpg&q=75",
-    },
-    {
-      id: "81054",
-      seriesName: "CHELSEA FANCAST",
-      title: "Went To Mow Kingsmeadow #215 Season Review",
-      duration: "54 min",
-      date: "18 Jun 2026",
-      coverUrl:
-        "https://wsrv.nl/?url=https%3A%2F%2Fassets.pippa.io%2Fshows%2F60f6ee7ca2587e6950f4a5aa%2F1781815333404-861623cc-f0f5-4535-87d0-ef43b7543d26.jpeg&w=240&h=240&fit=cover&output=jpg&q=75",
-    },
-  ],
-  seeMoreLabel: "See more",
-};
-
-const PODCASTS_FEED_BY_CLUB = {
-  LFC: {
-    sectionTitle: "Recent Podcasts",
-    episodes: [
-      {
-        id: "94622",
-        seriesName: "THE REDMEN TV - LIVERPOOL FC PODCAST",
-        title: "Liverpool's Academy Transfer Plans | Expert Insight w/Lewis Bower",
-        duration: "8 min",
-        date: "30 Jun 2026",
-        coverUrl:
-          "https://wsrv.nl/?url=https%3A%2F%2Fassets.pippa.io%2Fshows%2F611e92b606c05e0b50f40b2b%2F1747049635661-c32e5f61-402f-48b9-ab63-645732a3de6b.jpeg&w=240&h=240&fit=cover&output=jpg&q=75",
-        teamColor: "#C8102E",
-      },
-      {
-        id: "94410",
-        seriesName: "THE REDMEN TV - LIVERPOOL FC PODCAST",
-        title: "Should Liverpool Pay £116m for Bradley Barcola!? | Transfer News Update",
-        duration: "29 min",
-        date: "30 Jun 2026",
-        coverUrl:
-          "https://wsrv.nl/?url=https%3A%2F%2Fassets.pippa.io%2Fshows%2F611e92b606c05e0b50f40b2b%2F1747049635661-c32e5f61-402f-48b9-ab63-645732a3de6b.jpeg&w=240&h=240&fit=cover&output=jpg&q=75",
-        teamColor: "#C8102E",
-      },
-      {
-        id: "94342",
-        seriesName: "THE REDMEN TV - LIVERPOOL FC PODCAST",
-        title: "Liverpool's Winger Transfer Targets List Revealed! | Redmen Bite",
-        duration: "10 min",
-        date: "30 Jun 2026",
-        coverUrl:
-          "https://wsrv.nl/?url=https%3A%2F%2Fassets.pippa.io%2Fshows%2F611e92b606c05e0b50f40b2b%2F1747049635661-c32e5f61-402f-48b9-ab63-645732a3de6b.jpeg&w=240&h=240&fit=cover&output=jpg&q=75",
-        teamColor: "#C8102E",
-      },
-      {
-        id: "93398",
-        seriesName: "THE REDMEN TV - LIVERPOOL FC PODCAST",
-        title: "Liverpool Fans REACT to WILD Chelsea statement on Man City's new boss Enzo Maresca!",
-        duration: "11 min",
-        date: "29 Jun 2026",
-        coverUrl:
-          "https://wsrv.nl/?url=https%3A%2F%2Fassets.pippa.io%2Fshows%2F611e92b606c05e0b50f40b2b%2F1747049635661-c32e5f61-402f-48b9-ab63-645732a3de6b.jpeg&w=240&h=240&fit=cover&output=jpg&q=75",
-        teamColor: "#C8102E",
-      },
-      {
-        id: "92934",
-        seriesName: "FOOTBALL DAILY",
-        title: "World Cup: César Azpilicueta on Yamal, Dechamps & Tuchel",
-        duration: "31 min",
-        date: "29 Jun 2026",
-        coverUrl:
-          "https://wsrv.nl/?url=http%3A%2F%2Fichef.bbci.co.uk%2Fimages%2Fic%2F3000x3000%2Fp0ntgrn4.jpg&w=240&h=240&fit=cover&output=jpg&q=75",
-      },
-    ],
-    seeMoreLabel: "See more",
-  },
-  ARS: {
-    sectionTitle: "Recent Podcasts",
-    episodes: [
-      {
-        id: "93508",
-        seriesName: "ARSEBLOG ARSECAST, THE ARSENAL PODCAST",
-        title: "Arsecast Extra Episode 701 – 29.06.2026",
-        duration: "1 hr 23 min",
-        date: "29 Jun 2026",
-        coverUrl:
-          "https://wsrv.nl/?url=https%3A%2F%2Fassets.pippa.io%2Fshows%2F611fb7e9480472b028143f16%2F1780557453985-71cd2f99-ed13-4a7b-b8ec-dbb1ddc5c195.jpeg&w=240&h=240&fit=cover&output=jpg&q=75",
-        teamColor: "#EC0024",
-      },
-      {
-        id: "71429",
-        seriesName: "ARSEBLOG ARSECAST, THE ARSENAL PODCAST",
-        title: "Arsenal Women Arsecast Episode 168: Have you ever had it blue?",
-        duration: "49 min",
-        date: "4 Jun 2026",
-        coverUrl:
-          "https://wsrv.nl/?url=https%3A%2F%2Fassets.pippa.io%2Fshows%2F611fb7e9480472b028143f16%2F1780557453985-71cd2f99-ed13-4a7b-b8ec-dbb1ddc5c195.jpeg&w=240&h=240&fit=cover&output=jpg&q=75",
-        teamColor: "#EC0024",
-      },
-      ...PODCASTS_SAMPLE_FEED.episodes.slice(0, 3),
-    ],
-    seeMoreLabel: "See more",
-  },
-};
-
-function getPodcastsFeedForClub(code) {
-  if (code && PODCASTS_FEED_BY_CLUB[code]) {
-    return PODCASTS_FEED_BY_CLUB[code];
-  }
-
-  return PODCASTS_SAMPLE_FEED;
+function buildPodcastsLoadingMarkup() {
+  return `
+    <section class="sl-app-podcasts-feed sl-app-podcasts-feed--loading" id="content-section-recent-episodes" data-testid="recent-episodes-section" aria-label="recent-episodes-section">
+      <div class="sl-app-top-stories-loading" data-testid="recent-episodes-loading" aria-live="polite">
+        <span class="sl-app-top-stories-loading-spinner" aria-hidden="true"></span>
+        <span class="sl-app-top-stories-loading-text">Loading podcasts…</span>
+      </div>
+    </section>
+  `;
 }
 
 function buildPodcastCoverMarkup(episode) {
@@ -1384,19 +1667,6 @@ const VIDEO_PLAY_ICON = `<svg class="sl-app-video-play-icon" viewBox="0 0 24 24"
 
 const VIDEO_CAM_ICON = `<svg class="sl-app-video-cam-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="2" y="6" width="14" height="12" rx="2" stroke="#FFFFFF" stroke-width="2" fill="none"/><path stroke="#FFFFFF" stroke-width="2" fill="none" d="M16 10l6-3v10l-6-3z"/></svg>`;
 
-const EMPTY_VIDEOS_FEED = {
-  videos: [],
-  seeMoreLabel: "See more",
-};
-
-function getVideosFeedForClub(code) {
-  if (code && videosCache[code]) {
-    return videosCache[code];
-  }
-
-  return EMPTY_VIDEOS_FEED;
-}
-
 function buildVideoThumbMarkup(video) {
   const placeholderColor = escapeHtml(video.teamColor || "#4B5563");
 
@@ -1433,18 +1703,6 @@ function buildVideoCardMarkup(video) {
   `;
 }
 
-const EMPTY_SOCIAL_FEED = {
-  tweets: [],
-};
-
-function getSocialFeedForClub(code) {
-  if (code && socialFeedCache[code]) {
-    return socialFeedCache[code];
-  }
-
-  return EMPTY_SOCIAL_FEED;
-}
-
 function buildSocialFeedLoadingMarkup() {
   return `
     <div class="sl-club-story-feed-img sl-club-story-feed-img--social sl-club-story-feed-img--loading" data-testid="club-story-social-feed-loading">
@@ -1457,6 +1715,14 @@ function buildSocialFeedLoadingMarkup() {
 }
 
 function buildTweetArticleMarkup(tweet) {
+  if (tweet.isProfileFallback) {
+    return `
+      <article class="sl-club-story-tweet sl-club-story-tweet--profile" data-tweet-id="${escapeHtml(tweet.id)}">
+        <div class="sl-club-story-tweet-body">${tweet.html}</div>
+      </article>
+    `;
+  }
+
   if (tweet.embedHtml) {
     return `
       <article class="sl-club-story-tweet sl-club-story-tweet--embed" data-tweet-id="${escapeHtml(tweet.id)}">
@@ -1588,20 +1854,51 @@ function decodeHtmlEntities(text) {
   return textarea.value;
 }
 
+async function loadPodcastsForClub(code) {
+  if (!code || !window.SideLineAPI?.fetchPodcastsForClub) return;
+  if (podcastsLoadingCode === code || code in podcastsCache) return;
+
+  podcastsLoadingCode = code;
+  updateClubStoryFeedSection(1, code);
+
+  try {
+    const feed = await window.SideLineAPI.fetchPodcastsForClub(code, { perPage: STORY_PHONE_PODCASTS_LIMIT });
+    if (feed.episodes?.length) {
+      podcastsCache[code] = feed;
+    }
+  } catch (error) {
+    console.warn("Podcasts fetch failed:", error);
+  } finally {
+    if (podcastsLoadingCode === code) {
+      podcastsLoadingCode = null;
+    }
+    if (!(code in podcastsCache)) {
+      podcastsCache[code] = { sectionTitle: "Recent Podcasts", episodes: [], seeMoreLabel: "See more" };
+    }
+    updateClubStoryFeedSection(1, code);
+  }
+}
+
 async function loadSocialFeedForClub(code) {
   if (!code || !window.SideLineAPI?.fetchSocialFeedForClub) return;
+
+  const cacheKey = getSocialFeedCacheKey(code);
+  if (socialFeedLoadingCode === code || cacheKey in socialFeedCache) return;
 
   socialFeedLoadingCode = code;
   updateClubStorySocialStage(code);
 
   try {
     const feed = await window.SideLineAPI.fetchSocialFeedForClub(code, { perPage: 5 });
-    socialFeedCache[code] = feed;
+    socialFeedCache[cacheKey] = feed;
   } catch (error) {
     console.warn("Social feed fetch failed:", error);
   } finally {
     if (socialFeedLoadingCode === code) {
       socialFeedLoadingCode = null;
+    }
+    if (!(cacheKey in socialFeedCache)) {
+      socialFeedCache[cacheKey] = { tweets: [] };
     }
     updateClubStorySocialStage(code);
   }
@@ -1609,12 +1906,13 @@ async function loadSocialFeedForClub(code) {
 
 async function loadVideosForClub(code) {
   if (!code || !window.SideLineAPI?.fetchVideosForClub) return;
+  if (videosLoadingCode === code || code in videosCache) return;
 
   videosLoadingCode = code;
   updateClubStoryFeedSection(2, code);
 
   try {
-    const feed = await window.SideLineAPI.fetchVideosForClub(code, { perPage: 6 });
+    const feed = await window.SideLineAPI.fetchVideosForClub(code, { perPage: STORY_PHONE_VIDEOS_LIMIT });
     videosCache[code] = feed;
   } catch (error) {
     console.warn("Videos fetch failed:", error);
@@ -1622,16 +1920,11 @@ async function loadVideosForClub(code) {
     if (videosLoadingCode === code) {
       videosLoadingCode = null;
     }
+    if (!(code in videosCache)) {
+      videosCache[code] = { videos: [], seeMoreLabel: "See more" };
+    }
     updateClubStoryFeedSection(2, code);
   }
-}
-
-function getTopStoriesFeedForClub(code) {
-  if (code && topStoriesCache[code]) {
-    return topStoriesCache[code];
-  }
-
-  return TOP_STORIES_SAMPLE_FEED;
 }
 
 function getTopStoriesTeamAbbrev(code) {
@@ -1652,6 +1945,7 @@ function buildTopStoriesLoadingMarkup() {
 
 async function loadTopStoriesForClub(code) {
   if (!code || !window.SideLineAPI?.fetchTopStories) return;
+  if (topStoriesLoadingCode === code || code in topStoriesCache) return;
 
   topStoriesLoadingCode = code;
   updateClubStoryFeedSection(0, code);
@@ -1660,6 +1954,7 @@ async function loadTopStoriesForClub(code) {
     const feed = await window.SideLineAPI.fetchTopStories(code, {
       teamColor: getClubPrimaryColor(code),
       teamAbbrev: getTopStoriesTeamAbbrev(code),
+      limit: STORY_PHONE_TOP_STORIES_LIMIT,
     });
 
     if (feed.items?.length) {
@@ -1670,6 +1965,9 @@ async function loadTopStoriesForClub(code) {
   } finally {
     if (topStoriesLoadingCode === code) {
       topStoriesLoadingCode = null;
+    }
+    if (!(code in topStoriesCache)) {
+      topStoriesCache[code] = { items: [], seeMoreLabel: "See more" };
     }
     updateClubStoryFeedSection(0, code);
   }
@@ -1757,31 +2055,36 @@ function buildTopStoriesFeedMarkup(feed) {
 
 function buildClubStoryFeedBodyMarkup(stepIndex, clubCode) {
   if (stepIndex === 0) {
-    if (topStoriesLoadingCode === clubCode) {
+    if (topStoriesLoadingCode === clubCode || !(clubCode && clubCode in topStoriesCache)) {
       return buildTopStoriesLoadingMarkup();
     }
 
-    return buildTopStoriesFeedMarkup(getTopStoriesFeedForClub(clubCode));
+    return buildTopStoriesFeedMarkup(topStoriesCache[clubCode]);
   }
 
   if (stepIndex === 1) {
-    return buildPodcastsFeedMarkup(getPodcastsFeedForClub(clubCode));
+    if (podcastsLoadingCode === clubCode || !(clubCode && clubCode in podcastsCache)) {
+      return buildPodcastsLoadingMarkup();
+    }
+
+    return buildPodcastsFeedMarkup(podcastsCache[clubCode]);
   }
 
   if (stepIndex === 2) {
-    if (videosLoadingCode === clubCode) {
+    if (videosLoadingCode === clubCode || !(clubCode && clubCode in videosCache)) {
       return buildVideosLoadingMarkup();
     }
 
-    return buildVideosFeedMarkup(getVideosFeedForClub(clubCode));
+    return buildVideosFeedMarkup(videosCache[clubCode]);
   }
 
   if (stepIndex === 3) {
-    if (socialFeedLoadingCode === clubCode) {
+    const cacheKey = getSocialFeedCacheKey(clubCode);
+    if (socialFeedLoadingCode === clubCode || !(clubCode && cacheKey in socialFeedCache)) {
       return buildSocialFeedLoadingMarkup();
     }
 
-    return buildSocialFeedMarkup(getSocialFeedForClub(clubCode));
+    return buildSocialFeedMarkup(socialFeedCache[cacheKey]);
   }
 
   return "";
@@ -1836,20 +2139,23 @@ function buildClubStoryPhoneMarkup(clubCode = clubSelectorState.selectedCode) {
   return `
     ${buildPhoneStatusBarMarkup({ state: "story" })}
     <div class="sl-app-scaler sl-club-story-app-scaler">
-      <div class="sl-app-viewport sl-app-home-viewport" style="--club-primary: ${clubPrimary}">
-        <div class="sl-app-home-screen">
-          ${buildHomeChromeMarkup("trending")}
-          <div class="sl-app-home-content">
-            <div class="sl-app-home-feed" data-club-story-feed-scroll>
-              ${buildCombinedClubStoryFeedMarkup(clubCode)}
-            </div>
-            <div class="sl-app-home-social-stage" data-club-story-social-stage hidden>
-              ${buildClubStoryFeedBodyMarkup(CLUB_STORY_SOCIAL_STEP_INDEX, clubCode)}
+      <div class="sl-club-story-app-scale-slot">
+        <div class="sl-app-viewport sl-app-home-viewport" style="--club-primary: ${clubPrimary}">
+          <div class="sl-app-home-screen">
+            ${buildHomeChromeMarkup("trending")}
+            <div class="sl-app-home-content">
+              <div class="sl-app-home-feed" data-club-story-feed-scroll>
+                ${buildCombinedClubStoryFeedMarkup(clubCode)}
+              </div>
+              <div class="sl-app-home-social-stage" data-club-story-social-stage hidden>
+                ${buildClubStoryFeedBodyMarkup(CLUB_STORY_SOCIAL_STEP_INDEX, clubCode)}
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+    ${buildAppFooterNavigationMarkup()}
     <div class="sl-club-story-phone-shield" aria-hidden="true"></div>
   `;
 }
@@ -1908,6 +2214,7 @@ function updateClubStorySocialStage(clubCode = clubSelectorState.selectedCode) {
   stage.innerHTML = buildClubStoryFeedBodyMarkup(CLUB_STORY_SOCIAL_STEP_INDEX, clubCode);
   window.requestAnimationFrame(() => {
     void hydrateClubStoryTwitterEmbeds(stage);
+    scheduleStoryPhoneScaleSync(getClubStoryPhoneRoot());
   });
 }
 
@@ -1925,9 +2232,14 @@ function updateClubStoryFeedSection(sectionIndex, clubCode = clubSelectorState.s
   }
 
   section.innerHTML = buildClubStoryFeedBodyMarkup(sectionIndex, clubCode);
+
+  scheduleStoryPhoneScaleSync(getClubStoryPhoneRoot());
 }
 
-function renderClubStoryPhoneFeed(clubCode = clubSelectorState.selectedCode, { preserveScroll = true } = {}) {
+function renderClubStoryPhoneFeed(
+  clubCode = clubSelectorState.selectedCode,
+  { preserveScroll = true, enableFeedScroll = false } = {},
+) {
   const screen = document.querySelector(".sl-club-selector-story-phone-screen[data-club-story-feed]");
   if (!screen) return;
 
@@ -1935,6 +2247,7 @@ function renderClubStoryPhoneFeed(clubCode = clubSelectorState.selectedCode, { p
   const scrollTop = preserveScroll ? (feed?.scrollTop ?? 0) : 0;
 
   screen.dataset.clubStoryFeed = "combined";
+  screen.dataset.liveStep = String(clubSelectorState.currentStoryStep ?? CLUB_STORY_LIVE_STEP_INDEX);
   screen.innerHTML = buildClubStoryPhoneMarkup(clubCode);
   const storyStatusTime = screen.querySelector(".sl-phone-status-time");
   if (storyStatusTime) {
@@ -1953,10 +2266,90 @@ function renderClubStoryPhoneFeed(clubCode = clubSelectorState.selectedCode, { p
     }
   }
 
+  scheduleStoryPhoneScaleSync(screen);
+  syncStoryPhoneLiveView(clubSelectorState.currentStoryStep ?? CLUB_STORY_LIVE_STEP_INDEX);
+  prefetchAllStoryPhoneFeeds(clubCode);
   window.requestAnimationFrame(() => {
-    syncClubStoryPhoneScaleForScreen(screen);
-    initClubStoryPhoneFeedScroll();
+    destroyClubStoryPhoneFeedScroll();
+
+    const feedEl = getClubStoryPhoneFeed();
+    if (feedEl) {
+      feedEl.scrollTop = 0;
+    }
+
+    if (enableFeedScroll) {
+      initClubStoryPhoneFeedScroll();
+    }
   });
+}
+
+function ensureStoryPhoneFeed(clubCode = clubSelectorState.selectedCode) {
+  if (!clubCode) return;
+
+  const screen = getClubStoryPhoneRoot();
+  if (!screen?.innerHTML.trim() || screen.dataset.clubStoryFeed !== "combined") {
+    renderClubStoryPhoneFeed(clubCode, { preserveScroll: false });
+    return;
+  }
+
+  syncStoryPhoneLiveView(clubSelectorState.currentStoryStep ?? CLUB_STORY_LIVE_STEP_INDEX);
+}
+
+function syncStoryPhoneLiveView(stepIndex) {
+  const screen = getClubStoryPhoneRoot();
+  if (!screen) return;
+
+  const normalizedStep = Math.max(0, Math.min(CLUB_STORY_STEP_COUNT - 1, stepIndex));
+  screen.dataset.liveStep = String(normalizedStep);
+
+  const feed = getClubStoryPhoneFeed();
+  const stage = getClubStorySocialStage();
+  const isSocialStep = normalizedStep === CLUB_STORY_SOCIAL_STEP_INDEX;
+
+  clubStoryPhoneScroll.socialActive = isSocialStep;
+  clubStoryPhoneScroll.pendingFeedStep = null;
+
+  if (feed) {
+    feed.hidden = isSocialStep;
+    feed.style.opacity = "";
+    feed.classList.remove("is-fading-out", "is-fading-in", "is-fading-in-active");
+    feed.scrollTop = 0;
+  }
+
+  if (stage) {
+    stage.hidden = !isSocialStep;
+    stage.style.opacity = "";
+    stage.classList.toggle("is-visible", isSocialStep);
+    stage.classList.remove("is-fading-out", "is-entering");
+  }
+
+  setHomeFeedToggle(isSocialStep ? "social" : "trending");
+}
+
+function ensureStoryPhoneFeedForStep(
+  stepIndex,
+  clubCode = clubSelectorState.selectedCode,
+) {
+  if (!clubCode) return;
+
+  ensureStoryPhoneFeed(clubCode);
+  syncStoryPhoneLiveView(stepIndex);
+  prefetchAllStoryPhoneFeeds(clubCode);
+  scheduleStoryPhoneScaleSync(getClubStoryPhoneRoot());
+}
+
+let storyPhonePrefetchClubCode = null;
+
+function prefetchAllStoryPhoneFeeds(clubCode = clubSelectorState.selectedCode) {
+  if (!clubCode) return;
+  if (storyPhonePrefetchClubCode === clubCode) return;
+
+  storyPhonePrefetchClubCode = clubCode;
+
+  void loadTopStoriesForClub(clubCode);
+  void loadPodcastsForClub(clubCode);
+  void loadVideosForClub(clubCode);
+  void loadSocialFeedForClub(clubCode);
 }
 
 function refreshTopStoriesPhoneFeed(clubCode = clubSelectorState.selectedCode) {
@@ -1964,7 +2357,7 @@ function refreshTopStoriesPhoneFeed(clubCode = clubSelectorState.selectedCode) {
 }
 
 function refreshPodcastsPhoneFeed(clubCode = clubSelectorState.selectedCode) {
-  updateClubStoryFeedSection(1, clubCode);
+  void loadPodcastsForClub(clubCode);
 }
 
 function refreshVideosPhoneFeed(clubCode = clubSelectorState.selectedCode) {
@@ -2488,14 +2881,6 @@ function bootClubStoryPhoneViewports() {
 
   const sync = () => syncClubStoryPhoneScaleForScreen(storyScreen);
   sync();
-
-  if (window.ResizeObserver) {
-    const observer = new ResizeObserver(sync);
-    observer.observe(storyScreen);
-
-    const sharedPhone = document.querySelector("#sl-club-selector-shared-phone");
-    if (sharedPhone) observer.observe(sharedPhone);
-  }
 }
 
 const CLUB_HEADLINE_NAMES = {
@@ -2544,11 +2929,19 @@ const clubSelectorState = {
 const topStoriesCache = {};
 let topStoriesLoadingCode = null;
 
+const podcastsCache = {};
+let podcastsLoadingCode = null;
+
 const videosCache = {};
 let videosLoadingCode = null;
 
 const socialFeedCache = {};
 let socialFeedLoadingCode = null;
+const SOCIAL_FEED_CACHE_VERSION = 4;
+
+function getSocialFeedCacheKey(code) {
+  return `${code}:v${SOCIAL_FEED_CACHE_VERSION}`;
+}
 
 let clubSelectorPinController = null;
 
@@ -2562,10 +2955,6 @@ function getClubHeadlineName(code) {
 function updateClubStoryHeadlines(code) {
   const name = getClubHeadlineName(code);
 
-  refreshTopStoriesPhoneFeed(code);
-  refreshPodcastsPhoneFeed(code);
-  refreshVideosPhoneFeed(code);
-  refreshSocialPhoneFeed(code);
   applyClubPrimaryColor(code);
 
   clubSelectorState.headlines = CLUB_STORY_HEADLINE_BUILDERS.map((buildHeadline) => buildHeadline(name));
@@ -2575,6 +2964,10 @@ function updateClubStoryHeadlines(code) {
     headline.textContent =
       clubSelectorState.headlines[clubSelectorState.currentStoryStep] || clubSelectorState.headlines[0] || "";
   }
+}
+
+function syncStoryVisualFromStoryProgress(storyProgress) {
+  clubStoryPhoneScroll.syncStep?.(getClubSelectorStoryStepFromProgress(storyProgress));
 }
 
 function hideAutoPickOffer() {
@@ -2611,6 +3004,22 @@ function cancelAutoPickSequence({ resetOffer = true } = {}) {
   }
 }
 
+function fadeSharedPhoneOut({ duration = 0.45 } = {}) {
+  const sharedPhone = document.querySelector("#sl-club-selector-shared-phone");
+  if (!sharedPhone) return;
+
+  sharedPhone.classList.remove("is-interactive");
+
+  if (prefersReducedMotion || !window.gsap) {
+    sharedPhone.style.opacity = "0";
+    sharedPhone.style.visibility = "hidden";
+    return;
+  }
+
+  gsap.killTweensOf(sharedPhone);
+  gsap.to(sharedPhone, { autoAlpha: 0, duration, ease: "power2.inOut" });
+}
+
 function selectClubCard(card, onClubSelected) {
   if (!card || clubSelectorState.transitioning || clubSelectorState.storyUnlocked) return;
 
@@ -2632,6 +3041,7 @@ function selectClubCard(card, onClubSelected) {
 
   clubSelectorState.selectedCode = card.dataset.club;
   updateClubStoryHeadlines(clubSelectorState.selectedCode);
+  fadeSharedPhoneOut();
 
   if (onClubSelected) {
     window.setTimeout(() => onClubSelected(), 450);
@@ -2878,32 +3288,40 @@ function bootClubSelectorStory() {
   const arrow = document.querySelector("#sl-club-selector-pick-arrow");
   const sharedPhone = document.querySelector("#sl-club-selector-shared-phone");
   const pickSpacer = document.querySelector("#sl-club-selector-pick-phone-spacer");
-  const storySlot = document.querySelector("#sl-club-selector-story-phone-slot");
+  const storyPhoneSlot = document.querySelector("#sl-club-selector-story-phone-slot-marker");
+  const storyVisual = document.querySelector("#sl-club-story-visual");
   const textWrap = document.querySelector("#sl-club-selector-text-wrap");
   const pickScreenLayer = document.querySelector(".sl-club-selector-screen-pick");
-  const storyScreenLayer = document.querySelector(".sl-club-selector-screen-story");
+  const storyScreenLayer = document.querySelector("#sl-club-selector-screen-story");
 
-  if (!wrap || !pinShell || !panel || !pickPhase || !storyPhase || !sharedPhone || !pickSpacer || !storySlot) {
+  if (
+    !wrap ||
+    !pinShell ||
+    !panel ||
+    !pickPhase ||
+    !storyPhase ||
+    !sharedPhone ||
+    !pickSpacer ||
+    !storyPhoneSlot ||
+    !storyVisual
+  ) {
     return;
   }
 
   const stepperItems = [...document.querySelectorAll(".sl-club-story-stepper-item")];
+  const storyVisualSteps = [...document.querySelectorAll(".sl-club-story-visual-step")];
   const storyHeadline = document.querySelector("#sl-club-story-headline");
   const changeClubButton = document.querySelector("#sl-club-story-change-club");
 
   const STORY_STEP_COUNT = stepperItems.length || 4;
-
-  const PICK_SCROLL_VIEWPORTS = 0.5;
-  const STORY_SCROLL_VIEWPORTS = 3;
-  const TOTAL_SCROLL_VIEWPORTS = PICK_SCROLL_VIEWPORTS + STORY_SCROLL_VIEWPORTS;
-  const PICK_HOLD = PICK_SCROLL_VIEWPORTS;
-  const STEP_HOLD = STORY_SCROLL_VIEWPORTS / STORY_STEP_COUNT;
-  const PICK_PROGRESS_CAP = PICK_SCROLL_VIEWPORTS / TOTAL_SCROLL_VIEWPORTS;
-  const PHONE_SLIDE_DURATION = 0.85;
+  const snapProgressValues = buildClubSelectorSnapValues(STORY_STEP_COUNT);
+  const storySnapProgressValues = snapProgressValues.slice(1);
+  const PICK_PROGRESS_CAP = CLUB_SELECTOR_PICK_PROGRESS_CAP;
 
   let clubScrollTrigger = null;
-  let clubTimeline = null;
   let isClampingScroll = false;
+  let isProgrammaticStoryStepScroll = false;
+  let programmaticStoryStepTarget = null;
 
   const PHONE_BODY_HEIGHT_RATIO = 163.4 / 78;
 
@@ -2975,18 +3393,61 @@ function bootClubSelectorStory() {
     positionSharedPhoneAt(pickSpacer);
   }
 
-  function positionSharedPhoneAtStory() {
-    positionSharedPhoneAt(storySlot);
+  function setPickPhoneInteractive(isInteractive) {
+    sharedPhone.classList.toggle("is-interactive", isInteractive);
   }
 
-  function setPhoneScreenMode(mode) {
-    const isStory = mode === "story";
+  function setSharedPhoneVisible(visible) {
+    sharedPhone.hidden = !visible;
 
-    pickScreenLayer?.classList.toggle("is-active", !isStory);
-    if (pickScreenLayer) pickScreenLayer.hidden = isStory;
-    storyScreenLayer?.classList.toggle("is-active", isStory);
-    if (storyScreenLayer) storyScreenLayer.hidden = !isStory;
-    sharedPhone.classList.toggle("is-interactive", !isStory);
+    if (window.gsap) {
+      gsap.set(sharedPhone, { autoAlpha: visible ? 1 : 0 });
+    } else {
+      sharedPhone.style.opacity = visible ? "1" : "0";
+      sharedPhone.style.visibility = visible ? "visible" : "hidden";
+    }
+  }
+
+  function setStoryVisualVisible(visible) {
+    storyVisual.setAttribute("aria-hidden", visible ? "false" : "true");
+
+    if (window.gsap) {
+      gsap.set(storyVisual, { autoAlpha: visible ? 1 : 0 });
+    } else {
+      storyVisual.style.opacity = visible ? "1" : "0";
+      storyVisual.style.visibility = visible ? "visible" : "hidden";
+    }
+  }
+
+  function setStoryPhoneLayerActive(isActive) {
+    pickScreenLayer?.classList.toggle("is-active", !isActive);
+    storyScreenLayer?.classList.toggle("is-active", isActive);
+
+    if (storyScreenLayer) {
+      storyScreenLayer.hidden = !isActive;
+      storyScreenLayer.setAttribute("aria-hidden", isActive ? "false" : "true");
+    }
+
+    const storyScreen = getClubStoryPhoneRoot();
+    if (storyScreen) {
+      storyScreen.dataset.liveStep = isActive ? String(clubSelectorState.currentStoryStep) : "";
+    }
+  }
+
+  function syncStoryStepVisual(stepIndex) {
+    if (!clubSelectorState.storyUnlocked) return;
+
+    setStoryVisualVisible(false);
+    setStoryPhoneLayerActive(true);
+    setSharedPhoneVisible(true);
+    setPickPhoneInteractive(false);
+    positionSharedPhoneAt(storyPhoneSlot);
+    ensureStoryPhoneFeedForStep(stepIndex, clubSelectorState.selectedCode);
+
+    window.requestAnimationFrame(() => {
+      syncClubSelectorPhoneScales();
+      scheduleStoryPhoneScaleSync(getClubStoryPhoneRoot());
+    });
   }
 
   function setStoryStep(index) {
@@ -3011,29 +3472,131 @@ function bootClubSelectorStory() {
         item.removeAttribute("aria-hidden");
       }
     });
+
+    storyVisualSteps.forEach((step, stepVisualIndex) => {
+      const isActive = stepVisualIndex === stepIndex;
+      step.classList.toggle("is-active", isActive);
+      step.hidden = !isActive;
+    });
+
+    syncStoryStepVisual(stepIndex);
   }
 
   clubStoryPhoneScroll.syncStep = setStoryStep;
+
+  function scrollClubSelectorToProgress(progress) {
+    const trigger = clubScrollTrigger || ScrollTrigger.getById("club-selector-scroll");
+    if (!trigger || prefersReducedMotion) return;
+
+    const clampedProgress = Math.max(0, Math.min(1, progress));
+    trigger.scroll(trigger.start + (trigger.end - trigger.start) * clampedProgress);
+  }
 
   function scrollToStoryStep(stepIndex) {
     if (!clubSelectorState.storyUnlocked) return;
 
     const step = Math.max(0, Math.min(STORY_STEP_COUNT - 1, stepIndex));
-    scrollPhoneFeedToStep(step);
+    isProgrammaticStoryStepScroll = true;
+    programmaticStoryStepTarget = step;
     setStoryStep(step);
+    scrollClubSelectorToProgress(getClubSelectorStoryStepProgress(step, STORY_STEP_COUNT));
 
-    const trigger = clubScrollTrigger || ScrollTrigger.getById("club-selector-scroll");
+    if (prefersReducedMotion || !window.gsap || !clubScrollTrigger) {
+      clearProgrammaticStoryStepScroll();
+    }
+  }
 
-    if (!trigger || !window.gsap || prefersReducedMotion) return;
+  function clearProgrammaticStoryStepScroll() {
+    isProgrammaticStoryStepScroll = false;
+    programmaticStoryStepTarget = null;
+  }
 
-    clubStoryPhoneScroll.suppressPhoneFeedScrollSync = true;
-    const storyProgress = getStoryProgressForStep(step);
-    const totalProgress = PICK_PROGRESS_CAP + storyProgress * (1 - PICK_PROGRESS_CAP);
-    trigger.scroll(trigger.start + (trigger.end - trigger.start) * totalProgress);
+  function isProgrammaticStoryStepScrollComplete(self) {
+    if (!isProgrammaticStoryStepScroll || programmaticStoryStepTarget === null) return false;
 
-    window.setTimeout(() => {
-      clubStoryPhoneScroll.suppressPhoneFeedScrollSync = false;
-    }, prefersReducedMotion ? 0 : 400);
+    const targetProgress = getClubSelectorStoryStepProgress(programmaticStoryStepTarget, STORY_STEP_COUNT);
+    return Math.abs(self.progress - targetProgress) <= 0.015;
+  }
+
+  function clampClubScrollProgress(self, maxProgress) {
+    if (self.progress <= maxProgress) return;
+
+    isClampingScroll = true;
+    self.scroll(self.start + (self.end - self.start) * maxProgress);
+    window.requestAnimationFrame(() => {
+      isClampingScroll = false;
+    });
+  }
+
+  function syncClubSelectorStepFromScroll(self) {
+    if (isProgrammaticStoryStepScroll) {
+      if (isProgrammaticStoryStepScrollComplete(self)) {
+        clearProgrammaticStoryStepScroll();
+      }
+      return;
+    }
+
+    const step = getClubSelectorStoryStepFromProgress(self.progress, STORY_STEP_COUNT);
+
+    if (step !== clubSelectorState.currentStoryStep) {
+      setStoryStep(step);
+    }
+  }
+
+  function handleClubScrollUpdate(self) {
+    if (clubSelectorState.transitioning || isClampingScroll) return;
+
+    if (!clubSelectorState.storyUnlocked) {
+      const scrollAttemptThreshold = PICK_PROGRESS_CAP * 0.75;
+
+      if (!clubSelectorState.selectedCode && self.progress > scrollAttemptThreshold) {
+        showClubSelectorPickArrow();
+      }
+
+      if (self.progress <= PICK_PROGRESS_CAP) return;
+
+      if (!clubSelectorState.selectedCode) {
+        showClubSelectorPickArrow();
+
+        if (clubSelectorState.arrowShown && !clubSelectorState.autoPickOfferShown) {
+          beginAutoPickSequence(transitionToStory);
+        }
+      }
+
+      clampClubScrollProgress(self, PICK_PROGRESS_CAP);
+      return;
+    }
+
+    const minStoryProgress = getClubSelectorStoryStepProgress(0, STORY_STEP_COUNT);
+
+    if (self.progress < minStoryProgress) {
+      clampClubScrollProgress(self, minStoryProgress);
+      return;
+    }
+
+    syncClubSelectorStepFromScroll(self);
+  }
+
+  function applyPickPhaseVisuals() {
+    panel.classList.remove("is-story-active");
+    storyPhase.hidden = true;
+    storyPhase.setAttribute("aria-hidden", "true");
+    pickPhase.hidden = false;
+    pickPhase.classList.add("is-active");
+    pickPhase.setAttribute("aria-hidden", "false");
+
+    setStoryVisualVisible(false);
+    setSharedPhoneVisible(true);
+    setPickPhoneInteractive(true);
+    setStoryPhoneLayerActive(false);
+    positionSharedPhoneAtPick();
+
+    if (window.gsap) {
+      gsap.set(storyPhase, { opacity: 0, visibility: "hidden", pointerEvents: "none" });
+      gsap.set(pickPhase, { opacity: 1, visibility: "visible" });
+      gsap.set(textWrap, { opacity: 0 });
+      gsap.set(storyVisual, { autoAlpha: 0 });
+    }
   }
 
   function bootClubStoryStepper() {
@@ -3056,6 +3619,7 @@ function bootClubSelectorStory() {
       clubSelectorState.selectedCode = null;
       clubSelectorState.transitioning = false;
       clubSelectorState.currentStoryStep = 0;
+      storyPhonePrefetchClubCode = null;
 
       document.querySelectorAll(".sl-app-team-card").forEach((card) => {
         card.classList.remove("selected");
@@ -3077,9 +3641,13 @@ function bootClubSelectorStory() {
       arrow?.classList.remove("is-visible");
       clubSelectorState.arrowShown = false;
 
-      setPhoneScreenMode("pick");
+      setStoryVisualVisible(false);
+      setSharedPhoneVisible(true);
+      setPickPhoneInteractive(true);
+      setStoryPhoneLayerActive(false);
       positionSharedPhoneAtPick();
-      syncClubSelectorPhoneScales();
+      destroyClubStoryPhoneFeedScroll();
+      syncClubSelectorAppViewport();
 
       if (window.gsap) {
         gsap.set(storyPhase, { opacity: 0, visibility: "hidden", pointerEvents: "none" });
@@ -3092,8 +3660,6 @@ function bootClubSelectorStory() {
       if (storyHeadline) storyHeadline.textContent = "";
       applyClubPrimaryColor(null);
       setStoryStep(0);
-      resetClubStoryPhoneScrollState();
-      renderClubStoryPhoneFeed(clubSelectorState.selectedCode, { preserveScroll: false });
 
       const trigger = ScrollTrigger.getById("club-selector-scroll");
       if (trigger) {
@@ -3107,7 +3673,6 @@ function bootClubSelectorStory() {
     }
 
     clubSelectorState.transitioning = true;
-    const startRect = getRelativeRect(sharedPhone, panel);
 
     gsap
       .timeline({
@@ -3116,14 +3681,8 @@ function bootClubSelectorStory() {
         },
       })
       .to(textWrap, { opacity: 0, duration: 0.3, ease: "power1.inOut" })
+      .to(storyVisual, { autoAlpha: 0, duration: 0.3, ease: "power1.inOut" }, "<")
       .call(() => {
-        gsap.set(sharedPhone, {
-          left: startRect.left,
-          top: startRect.top,
-          width: startRect.width,
-          height: startRect.height,
-        });
-
         panel.classList.remove("is-story-active");
         pickPhase.hidden = false;
         pickPhase.classList.add("is-active");
@@ -3131,25 +3690,16 @@ function bootClubSelectorStory() {
         gsap.set(storyPhase, { opacity: 0, visibility: "hidden", pointerEvents: "none" });
         gsap.set([heading, arrow], { opacity: 0, visibility: "visible" });
       })
-      .to(
-        sharedPhone,
-        {
-          left: () => getRelativeRect(pickSpacer, panel).left,
-          top: () => getRelativeRect(pickSpacer, panel).top,
-          duration: PHONE_SLIDE_DURATION,
-          ease: "power2.inOut",
-        },
-        ">0.05",
-      )
-      .call(() => setPhoneScreenMode("pick"), null, ">")
+      .call(() => {
+        setSharedPhoneVisible(true);
+        positionSharedPhoneAtPick();
+      })
       .to([heading, arrow], { opacity: 1, duration: 0.35, ease: "power2.out" }, "<0.05");
   }
 
   function destroyClubScroll() {
     clubScrollTrigger?.kill();
     clubScrollTrigger = null;
-    clubTimeline?.kill();
-    clubTimeline = null;
   }
 
   function showStoryPhase() {
@@ -3167,35 +3717,8 @@ function bootClubSelectorStory() {
       if (textWrap) textWrap.style.opacity = "1";
     }
 
-    setPhoneScreenMode("story");
-    positionSharedPhoneAtStory();
+    setPickPhoneInteractive(false);
     setStoryStep(clubSelectorState.currentStoryStep);
-    initClubStoryPhoneFeedScroll();
-  }
-
-  function clampToPickPhase(self) {
-    if (clubSelectorState.storyUnlocked || isClampingScroll || clubSelectorState.autoPickRunning) return;
-
-    const scrollAttemptThreshold = PICK_PROGRESS_CAP * 0.75;
-    if (!clubSelectorState.selectedCode && self.progress > scrollAttemptThreshold) {
-      showClubSelectorPickArrow();
-    }
-
-    if (self.progress <= PICK_PROGRESS_CAP) return;
-
-    if (!clubSelectorState.selectedCode) {
-      showClubSelectorPickArrow();
-
-      if (clubSelectorState.arrowShown && !clubSelectorState.autoPickOfferShown) {
-        beginAutoPickSequence(transitionToStory);
-      }
-    }
-
-    isClampingScroll = true;
-    self.scroll(self.start + (self.end - self.start) * PICK_PROGRESS_CAP);
-    window.requestAnimationFrame(() => {
-      isClampingScroll = false;
-    });
   }
 
   function buildClubScroll() {
@@ -3203,59 +3726,62 @@ function bootClubSelectorStory() {
 
     destroyClubScroll();
 
-    gsap.set(storyPhase, { opacity: 0, visibility: "hidden", pointerEvents: "none" });
-    gsap.set(pickPhase, { opacity: 1, visibility: "visible" });
-    gsap.set(textWrap, { opacity: 0 });
-    panel.classList.remove("is-story-active");
-    pickPhase.hidden = false;
-    pickPhase.setAttribute("aria-hidden", "false");
-    setPhoneScreenMode("pick");
-    positionSharedPhoneAtPick();
+    if (clubSelectorState.storyUnlocked) {
+      showStoryPhase();
+      setStoryStep(clubSelectorState.currentStoryStep);
+    } else {
+      applyPickPhaseVisuals();
+    }
 
-    clubTimeline = gsap.timeline({
-      defaults: { ease: "power1.inOut" },
-      scrollTrigger: {
-        id: "club-selector-scroll",
-        trigger: wrap,
-        start: "top top",
-        endTrigger: "#sl-features-intro",
-        end: "top top",
-        pin: pinShell,
-        pinSpacing: true,
-        scrub: true,
-        anticipatePin: 0,
-        invalidateOnRefresh: true,
-        onUpdate(self) {
-          clampToPickPhase(self);
-
-          if (!clubSelectorState.storyUnlocked) return;
-
-          const storyProgress = Math.max(0, (self.progress - PICK_PROGRESS_CAP) / (1 - PICK_PROGRESS_CAP));
-          syncPhoneFeedScrollFromStoryProgress(storyProgress);
-        },
-        onLeaveBack() {
-          if (clubSelectorState.storyUnlocked) {
-            panel.classList.add("is-story-active");
+    clubScrollTrigger = ScrollTrigger.create({
+      id: "club-selector-scroll",
+      trigger: wrap,
+      start: "top top",
+      endTrigger: "#sl-features-intro",
+      end: "top top",
+      pin: pinShell,
+      pinSpacing: true,
+      anticipatePin: 0,
+      invalidateOnRefresh: true,
+      snap: {
+        snapTo(progress) {
+          if (!clubSelectorState.storyUnlocked) {
+            return progress > PICK_PROGRESS_CAP * 0.5 ? PICK_PROGRESS_CAP : 0;
           }
+
+          return nearestClubSelectorSnap(progress, storySnapProgressValues);
         },
+        duration: { min: 0.15, max: 0.5 },
+        delay: 0.08,
+        ease: "power1.inOut",
+      },
+      onUpdate: handleClubScrollUpdate,
+      onSnapComplete(self) {
+        if (clubSelectorState.storyUnlocked) {
+          if (isProgrammaticStoryStepScroll) {
+            clearProgrammaticStoryStepScroll();
+          }
+          syncClubSelectorStepFromScroll(self);
+        }
+      },
+      onLeaveBack() {
+        if (clubSelectorState.storyUnlocked) {
+          panel.classList.add("is-story-active");
+        }
       },
     });
 
-    clubScrollTrigger = clubTimeline.scrollTrigger;
     clubStoryPhoneScroll.getScrollTrigger = () => clubScrollTrigger;
     clubStoryPhoneScroll.getPickProgressCap = () => PICK_PROGRESS_CAP;
-
-    clubTimeline.to({}, { duration: PICK_HOLD });
-
-    for (let index = 0; index < STORY_STEP_COUNT; index += 1) {
-      clubTimeline.to({}, { duration: STEP_HOLD });
-    }
+    clubStoryPhoneScroll.getStoryStepProgress = (stepIndex) =>
+      getClubSelectorStoryStepProgress(stepIndex, STORY_STEP_COUNT);
   }
 
   function finishStoryTransition() {
     clubSelectorState.storyUnlocked = true;
     clubSelectorState.transitioning = false;
     showStoryPhase();
+    scrollToStoryStep(0);
   }
 
   function transitionToStory() {
@@ -3263,69 +3789,60 @@ function bootClubSelectorStory() {
     if (!clubSelectorState.selectedCode) return;
 
     clubSelectorState.transitioning = true;
+    setPickPhoneInteractive(false);
 
     if (prefersReducedMotion || !window.gsap) {
       if (window.gsap) {
         gsap.set([heading, arrow], { opacity: 0 });
+        gsap.set(sharedPhone, { autoAlpha: 0 });
       } else {
         if (heading) heading.style.opacity = "0";
         if (arrow) arrow.style.opacity = "0";
       }
 
       storyPhase.hidden = false;
-      setPhoneScreenMode("story");
       renderClubStoryPhoneFeed(clubSelectorState.selectedCode, { preserveScroll: false });
-      positionSharedPhoneAtStory();
       finishStoryTransition();
       return;
     }
 
     storyPhase.hidden = false;
     gsap.set(storyPhase, { opacity: 0, visibility: "hidden", pointerEvents: "none" });
-
-    const storyRect = getRelativeRect(storySlot, panel);
-    const storySize = getSharedPhoneTargetSize(storySlot);
-    if (storySize.width > 0) storyRect.width = storySize.width;
-    if (storySize.height > 0) storyRect.height = storySize.height;
+    gsap.set(storyVisual, { autoAlpha: 0 });
+    gsap.set(textWrap, { opacity: 0 });
+    gsap.set(sharedPhone, { autoAlpha: 0 });
 
     gsap
       .timeline({
         onComplete: finishStoryTransition,
       })
-      .to([heading, arrow], { opacity: 0, duration: 0.4, ease: "power1.inOut" })
-      .to(
-        sharedPhone,
-        {
-          left: storyRect.left,
-          top: storyRect.top,
-          width: storyRect.width,
-          height: storyRect.height,
-          duration: PHONE_SLIDE_DURATION,
-          ease: "power2.inOut",
-        },
-        0.15,
-      )
+      .to([heading, arrow], { opacity: 0, duration: 0.35, ease: "power1.inOut" })
       .call(() => {
-        setPhoneScreenMode("story");
         renderClubStoryPhoneFeed(clubSelectorState.selectedCode, { preserveScroll: false });
+        setStoryPhoneLayerActive(true);
+        positionSharedPhoneAt(storyPhoneSlot);
+        syncClubSelectorPhoneScales();
       })
       .set(storyPhase, { visibility: "visible", pointerEvents: "auto" })
-      .to(storyPhase, { opacity: 1, duration: 0.2, ease: "power1.inOut" }, "<")
-      .to(textWrap, { opacity: 1, duration: 0.35, ease: "power2.out" }, "<0.05");
+      .to(storyPhase, { opacity: 1, duration: 0.25, ease: "power1.inOut" })
+      .to(textWrap, { opacity: 1, duration: 0.4, ease: "power2.out" }, "<0.08")
+      .to(sharedPhone, { autoAlpha: 1, duration: 0.5, ease: "power2.out" }, "<0.12");
   }
 
+  setStoryVisualVisible(false);
   positionSharedPhoneAtPick();
+
   window.addEventListener("resize", () => {
     if (clubSelectorState.transitioning) return;
 
     if (clubSelectorState.storyUnlocked) {
-      positionSharedPhoneAtStory();
+      syncStoryStepVisual(clubSelectorState.currentStoryStep);
       syncClubSelectorPhoneScales();
       return;
     }
 
     positionSharedPhoneAtPick();
-    syncClubSelectorPhoneScales();
+    syncClubSelectorAppViewport();
   });
 
   changeClubButton?.addEventListener("click", resetToPickPhase);
@@ -3334,47 +3851,70 @@ function bootClubSelectorStory() {
 
   bootClubSelectorPickArrowHint();
   bootClubSelectorTeamPicker(transitionToStory);
+  bootClubStoryPhoneViewports();
 
   clubSelectorPinController = {
     buildClubScroll,
     refreshOnResize() {
-      syncClubSelectorPhoneScales();
+      const savedStep = clubSelectorState.currentStoryStep;
       const wasUnlocked = clubSelectorState.storyUnlocked;
+
+      syncClubSelectorAppViewport();
       buildClubScroll();
       featuresIntroPinController?.rebuild?.();
+
       if (wasUnlocked) {
         clubSelectorState.storyUnlocked = true;
         showStoryPhase();
+        scrollToStoryStep(savedStep);
       } else {
-        positionSharedPhoneAtPick();
+        applyPickPhaseVisuals();
       }
+
       ScrollTrigger.refresh(true);
     },
   };
 }
 
+let clubSelectorResizeTimer = null;
+
 function bootClubSelectorStoryPin() {
   if (prefersReducedMotion || !window.gsap || !window.ScrollTrigger) return;
 
   window.addEventListener("resize", () => {
-    clubSelectorPinController?.refreshOnResize();
+    if (clubSelectorResizeTimer) {
+      window.clearTimeout(clubSelectorResizeTimer);
+    }
+
+    clubSelectorResizeTimer = window.setTimeout(() => {
+      clubSelectorResizeTimer = null;
+      clubSelectorPinController?.refreshOnResize?.();
+    }, 150);
   });
 }
 
 bootCtaLogoGrid();
+bootSpectatorCarousel();
 bootHeroVideo();
 bootHeroPhoneStatusBar();
 renderClubSelectorTeams();
 bootClubSelectorAppViewport();
-renderClubStoryPhoneSteps();
-bootClubStoryPhoneViewports();
 bootClubSelectorStory();
 bootAnimations();
 
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) return;
+  resetPageScrollPosition();
+});
+
 window.addEventListener("load", () => {
-  syncClubSelectorPhoneScales();
-  clubSelectorPinController?.refreshOnResize();
+  resetPageScrollPosition();
+  syncClubSelectorAppViewport();
+  clubSelectorPinController?.refreshOnResize?.();
+
   if (window.ScrollTrigger) {
     ScrollTrigger.refresh(true);
   }
+
+  resetPageScrollPosition();
 });
