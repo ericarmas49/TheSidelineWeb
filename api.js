@@ -565,7 +565,7 @@ function buildXTweetUrl(tweet) {
 function buildXTweetEmbedMarkup(tweetUrl) {
   if (!tweetUrl) return "";
 
-  return `<blockquote class="twitter-tweet" data-theme="dark" data-dnt="true" data-width="310"><a href="${escapeHtml(tweetUrl)}"></a></blockquote>`;
+  return `<blockquote class="twitter-tweet" data-theme="dark" data-dnt="true" data-width="390"><a href="${escapeHtml(tweetUrl)}"></a></blockquote>`;
 }
 
 function formatXTweetHtml(tweet) {

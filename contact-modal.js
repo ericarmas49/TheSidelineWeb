@@ -39,6 +39,14 @@ async function submitContactForm(payload) {
     : new Error("Unable to send your message. Please try again.");
 }
 
+function buildContactMessage(subject, message) {
+  const trimmedSubject = String(subject || "").trim();
+  const trimmedMessage = String(message || "").trim();
+
+  if (!trimmedSubject) return trimmedMessage;
+  return `Subject: ${trimmedSubject}\n\n${trimmedMessage}`;
+}
+
 function buildContactModalMarkup() {
   return `
     <div class="sl-contact-modal-backdrop" data-contact-dismiss></div>
@@ -108,38 +116,19 @@ function buildContactModalMarkup() {
   `;
 }
 
-function buildContactMessage(subject, message) {
-  const trimmedSubject = String(subject || "").trim();
-  const trimmedMessage = String(message || "").trim();
-
-  if (!trimmedSubject) return trimmedMessage;
-  return `Subject: ${trimmedSubject}\n\n${trimmedMessage}`;
-}
-
-function bootContactModal() {
-  const trigger = document.getElementById("sl-footer-contact");
-  if (!trigger) return;
-
-  let modal = document.getElementById("sl-contact-modal");
-  if (!modal) {
-    modal = document.createElement("div");
-    modal.id = "sl-contact-modal";
-    modal.className = "sl-contact-modal";
-    modal.hidden = true;
-    modal.innerHTML = buildContactModalMarkup();
-    document.body.appendChild(modal);
-  }
-
-  const form = document.getElementById("sl-contact-form");
-  const formView = document.getElementById("sl-contact-modal-form-view");
-  const successView = document.getElementById("sl-contact-modal-success-view");
-  const errorEl = document.getElementById("sl-contact-error");
-  const submitButton = document.getElementById("sl-contact-submit");
-  const nameInput = document.getElementById("sl-contact-name");
-  const emailInput = document.getElementById("sl-contact-email");
-  const messageInput = document.getElementById("sl-contact-message");
+function bindContactForm({
+  form,
+  formView,
+  successView,
+  errorEl,
+  submitButton,
+  nameInput,
+  emailInput,
+  messageInput,
+  onSuccess,
+  onReset,
+}) {
   const requiredInputs = [nameInput, emailInput, messageInput].filter(Boolean);
-  let lastFocusedElement = null;
 
   function clearFieldErrors() {
     requiredInputs.forEach((input) => input.classList.remove("is-invalid"));
@@ -175,29 +164,16 @@ function bootContactModal() {
     formView?.setAttribute("hidden", "");
     successView?.removeAttribute("hidden");
     setError("");
+    onSuccess?.();
   }
 
-  function openModal() {
-    lastFocusedElement = document.activeElement;
-    showFormView();
-    form?.reset();
-    modal.hidden = false;
-    document.body.classList.add("sl-contact-modal-open");
-    window.setTimeout(() => nameInput?.focus(), 0);
-  }
-
-  function closeModal() {
-    modal.hidden = true;
-    document.body.classList.remove("sl-contact-modal-open");
+  function resetForm() {
     showFormView();
     form?.reset();
     clearFieldErrors();
     setError("");
     submitButton?.removeAttribute("disabled");
-
-    if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
-      lastFocusedElement.focus();
-    }
+    onReset?.();
   }
 
   requiredInputs.forEach((input) => {
@@ -206,20 +182,6 @@ function bootContactModal() {
         input.classList.remove("is-invalid");
       }
     });
-  });
-
-  trigger.addEventListener("click", (event) => {
-    event.preventDefault();
-    openModal();
-  });
-
-  modal.querySelectorAll("[data-contact-dismiss]").forEach((element) => {
-    element.addEventListener("click", closeModal);
-  });
-
-  document.addEventListener("keydown", (event) => {
-    if (modal.hidden || event.key !== "Escape") return;
-    closeModal();
   });
 
   form?.addEventListener("submit", async (event) => {
@@ -261,10 +223,123 @@ function bootContactModal() {
       submitButton.disabled = false;
     }
   });
+
+  return { showFormView, showSuccessView, resetForm };
+}
+
+function bootContactPage() {
+  const pageRoot = document.getElementById("sl-contact-page");
+  if (!pageRoot) return;
+
+  const form = document.getElementById("sl-contact-form");
+  const formView = document.getElementById("sl-contact-page-form-view");
+  const successView = document.getElementById("sl-contact-page-success-view");
+  const errorEl = document.getElementById("sl-contact-error");
+  const submitButton = document.getElementById("sl-contact-submit");
+  const resetButton = document.getElementById("sl-contact-page-reset");
+  const successMessage = document.getElementById("sl-contact-page-success-message");
+  const nameInput = document.getElementById("sl-contact-name");
+
+  if (successMessage) {
+    successMessage.textContent = CONTACT_SUCCESS_MESSAGE;
+  }
+
+  const contactForm = bindContactForm({
+    form,
+    formView,
+    successView,
+    errorEl,
+    submitButton,
+    nameInput: document.getElementById("sl-contact-name"),
+    emailInput: document.getElementById("sl-contact-email"),
+    messageInput: document.getElementById("sl-contact-message"),
+  });
+
+  resetButton?.addEventListener("click", () => {
+    contactForm.resetForm();
+    window.setTimeout(() => nameInput?.focus(), 0);
+  });
+
+  window.setTimeout(() => nameInput?.focus(), 0);
+}
+
+function bootContactModal() {
+  const trigger = document.getElementById("sl-footer-contact");
+  const triggerHref = trigger?.getAttribute("href") || "";
+  const opensModal = trigger && (triggerHref === "#" || triggerHref.endsWith("#"));
+
+  if (!opensModal) return;
+
+  let modal = document.getElementById("sl-contact-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "sl-contact-modal";
+    modal.className = "sl-contact-modal";
+    modal.hidden = true;
+    modal.innerHTML = buildContactModalMarkup();
+    document.body.appendChild(modal);
+  }
+
+  const form = document.getElementById("sl-contact-form");
+  const formView = document.getElementById("sl-contact-modal-form-view");
+  const successView = document.getElementById("sl-contact-modal-success-view");
+  const errorEl = document.getElementById("sl-contact-error");
+  const submitButton = document.getElementById("sl-contact-submit");
+  const nameInput = document.getElementById("sl-contact-name");
+  let lastFocusedElement = null;
+
+  const contactForm = bindContactForm({
+    form,
+    formView,
+    successView,
+    errorEl,
+    submitButton,
+    nameInput,
+    emailInput: document.getElementById("sl-contact-email"),
+    messageInput: document.getElementById("sl-contact-message"),
+  });
+
+  function openModal() {
+    lastFocusedElement = document.activeElement;
+    contactForm.showFormView();
+    form?.reset();
+    modal.hidden = false;
+    document.body.classList.add("sl-contact-modal-open");
+    window.setTimeout(() => nameInput?.focus(), 0);
+  }
+
+  function closeModal() {
+    modal.hidden = true;
+    document.body.classList.remove("sl-contact-modal-open");
+    contactForm.resetForm();
+
+    if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
+      lastFocusedElement.focus();
+    }
+  }
+
+  trigger.addEventListener("click", (event) => {
+    event.preventDefault();
+    openModal();
+  });
+
+  modal.querySelectorAll("[data-contact-dismiss]").forEach((element) => {
+    element.addEventListener("click", closeModal);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (modal.hidden || event.key !== "Escape") return;
+    closeModal();
+  });
+}
+
+function bootContact() {
+  bootContactPage();
+  bootContactModal();
 }
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", bootContactModal);
+  document.addEventListener("DOMContentLoaded", bootContact);
 } else {
-  bootContactModal();
+  bootContact();
 }

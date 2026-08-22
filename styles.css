@@ -93,7 +93,8 @@ a {
 }
 
 .header-actions,
-.hero-downloads {
+.hero-downloads,
+.sl-cta-home-downloads {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -180,6 +181,15 @@ section[data-section] {
 @media (min-width: 981px) {
   .hero {
     grid-template-columns: minmax(0, 1fr) minmax(0, 500px);
+  }
+
+  .hero-downloads,
+  .sl-cta-home-downloads {
+    flex-wrap: nowrap;
+  }
+
+  .sl-hero-qr {
+    margin-left: 15%;
   }
 }
 
@@ -296,30 +306,15 @@ section[data-section] {
   flex-shrink: 0;
   width: 200px;
   height: 200px;
-  margin-left: 30%;
+  margin-left: 15%;
 }
 
-.sl-hero-qr-svg {
+.sl-hero-qr-img,
+.sl-cta-qr-img {
   display: block;
   width: 100%;
   height: 100%;
-  overflow: visible;
-}
-
-.sl-hero-qr-crosshair {
-  stroke: rgba(255, 255, 255, 0.85);
-  stroke-width: 0.75;
-}
-
-.sl-hero-qr-finder {
-  fill: none;
-  stroke: #fff;
-  stroke-width: 3.5;
-}
-
-.sl-hero-qr-finder-core,
-.sl-hero-qr-block {
-  fill: #fff;
+  object-fit: contain;
 }
 
 .phone-shell {
@@ -780,6 +775,13 @@ h2.sl-club-selector-title {
   overflow: visible;
 }
 
+.sl-club-selector-shared-phone .sl-app-scroll,
+.sl-club-selector-screen-pick .sl-app-scroll {
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+}
+
 .sl-club-selector-phase-pick .sl-app-league-header,
 .sl-club-selector-screen-pick .sl-app-league-header {
   margin-bottom: 10px;
@@ -1120,6 +1122,10 @@ h2.sl-club-selector-title {
 }
 
 .sl-club-selector-shared-phone.is-interactive {
+  pointer-events: none;
+}
+
+.sl-club-selector-shared-phone.is-interactive :is(button, a, [role="button"], .sl-app-team-card) {
   pointer-events: auto;
 }
 
@@ -1360,16 +1366,19 @@ h2.sl-club-selector-title {
   overflow: hidden;
 }
 
-.sl-club-selector-story-phone-screen .sl-club-story-app-scaler {
-  position: absolute;
-  top: var(--phone-safe-top);
-  right: 0;
-  bottom: calc(var(--sl-story-footer-tab-height) + var(--phone-safe-bottom));
-  left: 0;
+.sl-club-selector-story-phone-screen .sl-club-story-app-scaler,
+.sl-club-selector-shared-phone .sl-app-scaler.sl-club-story-app-scaler {
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
   display: flex;
-  flex: none;
-  align-items: flex-start;
-  justify-content: center;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  align-items: stretch;
+  justify-content: flex-start;
   width: 100%;
   overflow: hidden;
 }
@@ -1378,19 +1387,19 @@ h2.sl-club-selector-title {
   position: relative;
   width: 100%;
   max-width: 100%;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: hidden;
 }
 
 .sl-club-selector-story-phone-screen .sl-app-viewport.sl-app-home-viewport {
   position: absolute;
-  top: auto;
-  bottom: 0;
+  top: 0;
   left: 0;
   width: 390px;
-  height: 754px;
+  height: 702px;
   transform: scale(var(--sl-app-scale, 1));
-  transform-origin: bottom left;
+  transform-origin: top left;
 }
 
 .sl-club-selector-story-phone-screen .sl-app-home-chrome {
@@ -1431,18 +1440,6 @@ h2.sl-club-selector-title {
   position: relative;
 }
 
-.sl-club-selector-story-phone-screen .sl-app-home-feed::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 2;
-  height: 48px;
-  background: linear-gradient(180deg, rgb(33 33 33 / 0) 0%, #212121 72%);
-  pointer-events: none;
-}
-
 .sl-club-selector-story-phone-screen .sl-app-top-story-featured-excerpt {
   -webkit-line-clamp: 2;
 }
@@ -1478,8 +1475,9 @@ h2.sl-club-selector-title {
 .sl-club-selector-story-phone-screen .sl-club-story-feed-img--social {
   box-sizing: border-box;
   max-width: 100%;
-  padding: 0 12px 20px;
+  padding: 0;
   overflow: hidden;
+  background: rgba(48, 48, 48, 1);
 }
 
 .sl-club-selector-story-phone-screen .sl-app-home-filter-row {
@@ -1550,7 +1548,7 @@ h2.sl-club-selector-title {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: #212121;
+  background: rgba(48, 48, 48, 1);
   opacity: 0;
   visibility: hidden;
 }
@@ -1766,14 +1764,12 @@ h2.sl-club-selector-title {
 }
 
 .sl-club-selector-story-phone-screen > .sl-app-home-footer {
-  position: absolute;
+  position: relative;
   z-index: 6;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  display: flex;
-  justify-content: center;
-  padding-bottom: var(--phone-safe-bottom);
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding-bottom: 2.5cqi;
   background: #212121;
 }
 
@@ -1848,6 +1844,7 @@ h2.sl-club-selector-title {
   display: block;
   width: 35px;
   height: 24px;
+  object-fit: contain;
 }
 
 .sl-app-home-footer-club-badge {
@@ -2389,8 +2386,8 @@ h2.sl-club-selector-title {
 }
 
 .sl-club-story-feed-img--social {
-  padding: 20px;
-  background: #212121;
+  padding: 0;
+  background: rgba(48, 48, 48, 1);
 }
 
 .sl-app-social-section-title {
@@ -2425,21 +2422,29 @@ h2.sl-club-selector-title {
   border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.sl-club-story-tweet--embed {
+  background: rgba(48, 48, 48, 1);
+}
+
 .sl-club-story-tweet-embed {
-  display: flex;
-  justify-content: center;
+  display: block;
   width: 100%;
 }
 
 .sl-club-story-tweet-embed .twitter-tweet {
-  margin: 0 auto !important;
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
 .sl-club-story-tweet-embed iframe {
+  width: 100% !important;
   max-width: 100% !important;
 }
 
 .sl-club-story-tweet-body {
+  padding: 16px 20px;
+  background: rgba(48, 48, 48, 1);
   color: #f3f4f6;
   font-family: var(--font-body);
   font-size: 14px;
@@ -3002,8 +3007,9 @@ p.sl-feature-body {
   box-sizing: border-box;
   width: min(var(--max), calc(100% - 2 * max(34px, calc((100vw - var(--max)) / 2))));
   max-width: var(--max);
+  height: 100%;
   margin-inline: auto;
-  padding: clamp(56px, 8vh, 96px) max(34px, calc((100vw - var(--max)) / 2));
+  padding: clamp(32px, 7vh, 78px) max(34px, calc((100vw - var(--max)) / 2));
   gap: clamp(32px, 5vh, 64px);
 }
 
@@ -3081,9 +3087,9 @@ p.sl-feature-body {
     box-sizing: border-box;
     width: min(var(--max), calc(100% - 2 * max(34px, calc((100vw - var(--max)) / 2))));
     max-width: var(--max);
-    min-height: calc(100dvh - clamp(64px, 10vh, 120px));
+    height: 100%;
     margin-inline: auto;
-    padding: clamp(32px, 5vh, 78px) max(34px, calc((100vw - var(--max)) / 2));
+    padding: clamp(32px, 7vh, 78px) max(34px, calc((100vw - var(--max)) / 2));
     gap: clamp(24px, 4vh, 48px) clamp(48px, 6vw, 80px);
   }
 
@@ -3429,11 +3435,7 @@ h2.sl-cta-home-title {
 }
 
 .sl-cta-home-downloads {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
   justify-content: center;
-  gap: clamp(18px, 3vw, 32px);
 }
 
 .sl-spectator {
@@ -3454,7 +3456,7 @@ h2.sl-spectator-title {
   font-family: var(--font-display);
   font-size: clamp(2rem, 4.2vw, 3rem);
   font-weight: 200;
-  line-height: 1.05;
+  line-height: 1.3;
   text-align: center;
   text-transform: uppercase;
 }
@@ -3474,7 +3476,7 @@ h2.sl-spectator-title {
 
 .sl-spectator-media {
   width: min(350px, 100%);
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 1.3 / 1;
   margin: 0;
   overflow: hidden;
   border-radius: 20px;
@@ -3526,7 +3528,7 @@ p.sl-spectator-body {
   display: none;
   position: absolute;
   z-index: 2;
-  top: min(175px, calc((100vw - 68px) / 2));
+  top: 120px;
   align-items: center;
   justify-content: center;
   width: 36px;
@@ -3592,29 +3594,7 @@ p.sl-spectator-body {
   flex-shrink: 0;
   width: clamp(88px, 10vw, 108px);
   height: clamp(88px, 10vw, 108px);
-}
-
-.sl-cta-qr-svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.sl-cta-qr-crosshair {
-  stroke: rgba(33, 33, 33, 0.35);
-  stroke-width: 0.75;
-}
-
-.sl-cta-qr-finder {
-  fill: none;
-  stroke: #212121;
-  stroke-width: 3.5;
-}
-
-.sl-cta-qr-finder-core,
-.sl-cta-qr-block {
-  fill: #212121;
+  margin-left: 15%;
 }
 
 .no-motion .sl-club-story-phone-step {
@@ -3886,6 +3866,48 @@ body.sl-contact-modal-open {
   line-height: 1.5;
 }
 
+.sl-contact-page .site-header {
+  background: var(--black);
+}
+
+.sl-contact-page .sl-site-footer {
+  padding-top: 56px;
+}
+
+.sl-contact-page-main {
+  padding: clamp(48px, 8vw, 96px) max(34px, calc((100vw - var(--max)) / 2)) clamp(72px, 10vw, 120px);
+  background: var(--black);
+}
+
+.sl-contact-page-container {
+  width: 100%;
+  max-width: 520px;
+  margin-inline: auto;
+}
+
+.sl-contact-page-panel {
+  padding: 36px 32px 32px;
+  border-radius: 24px;
+  background: #fff;
+  color: #212121;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+}
+
+.sl-contact-page-success-view {
+  display: grid;
+  gap: 24px;
+}
+
+.sl-contact-page-success-view[hidden] {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .sl-contact-page-panel {
+    padding: 28px 20px 24px;
+  }
+}
+
 @media (max-width: 980px) {
   :root {
     /* iPhone 17 Pro Max body: 78.0 × 163.4 mm */
@@ -3941,8 +3963,8 @@ body.sl-contact-modal-open {
 
   .sl-club-selector-story-phone-screen .sl-app-viewport.sl-app-home-viewport {
     width: 390px;
-    height: 754px;
-    transform-origin: bottom left;
+    height: 702px;
+    transform-origin: top left;
   }
 
   .download-label {
@@ -4534,7 +4556,6 @@ body.sl-contact-modal-open {
 
   .sl-cta-home-downloads {
     flex-direction: row;
-    flex-wrap: wrap;
   }
 
   .feature-section.split.reverse .feature-text {
@@ -4561,7 +4582,6 @@ body.sl-contact-modal-open {
 
   .sl-cta-home-downloads {
     flex-direction: row;
-    flex-wrap: wrap;
     justify-content: center;
   }
 

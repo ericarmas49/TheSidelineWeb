@@ -304,7 +304,7 @@ function bootAnimations() {
     .timeline({ defaults: { ease: "power3.out" } })
     .from(".hero h1", { y: 34, opacity: 0, duration: 0.95 })
     .from(".hero-copy > h2.sl-hero-subheading", { y: 26, opacity: 0, duration: 0.8 }, "-=0.45")
-    .from("#sl-hero-app-store", { y: 22, opacity: 0, duration: 0.75 }, "-=0.35")
+    .from(".sl-hero-downloads .sl-store-badge", { y: 22, opacity: 0, duration: 0.75, stagger: 0.1 }, "-=0.35")
     .from(".sl-hero-qr", { scale: 0.82, opacity: 0, duration: 0.65 }, "-=0.55")
     .from(".sl-hero-phone-inner", { y: 20, opacity: 0, duration: 0.85 }, "-=0.8");
 
@@ -341,27 +341,48 @@ const FEATURES_INTRO_PHONE_ENTER_ROTATION = 14;
 const FEATURES_INTRO_DESKTOP_PHONE_ENTER_Y = 50;
 const FEATURES_INTRO_DESKTOP_PHONE_EXIT_X = -400;
 const FEATURES_INTRO_DESKTOP_PHONE_EXIT_FADE_END = 0.68;
-const FEATURES_INTRO_MOBILE_PIN_VIEWPORTS = 2.75;
-const FEATURES_INTRO_DESKTOP_PIN_VIEWPORTS = 2.25;
+const FEATURES_INTRO_MOBILE_PIN_VIEWPORTS = 3.5;
+const FEATURES_INTRO_DESKTOP_PIN_VIEWPORTS = 3;
+const FEATURES_INTRO_END_HOLD_RATIO = 0.38;
 const FEATURES_INTRO_MOBILE_STEP_COUNT = 1 + FEATURES_INTRO_SCROLL_STEPS.length;
 const FEATURES_INTRO_DESKTOP_STEP_COUNT = FEATURES_INTRO_SCROLL_STEPS.length;
 
 function buildFeaturesIntroSnapValues(stepCount) {
   if (stepCount <= 1) return [0];
 
-  return Array.from({ length: stepCount }, (_, index) => index / (stepCount - 1));
+  const activeRange = 1 - FEATURES_INTRO_END_HOLD_RATIO;
+
+  return Array.from({ length: stepCount }, (_, index) => {
+    if (stepCount === 1) return 0;
+    return (index / (stepCount - 1)) * activeRange;
+  });
 }
 
-function getFeaturesIntroStepFromProgress(progress, stepCount) {
-  if (stepCount <= 1) return 0;
+function getFeaturesIntroStepFromProgress(progress, snapValues) {
+  if (!snapValues?.length) return 0;
+  if (snapValues.length === 1) return 0;
 
-  return Math.min(stepCount - 1, Math.max(0, Math.round(progress * (stepCount - 1))));
+  const lastIndex = snapValues.length - 1;
+  const lastSnap = snapValues[lastIndex];
+
+  if (progress >= lastSnap - 0.001) {
+    return lastIndex;
+  }
+
+  for (let index = lastIndex - 1; index >= 0; index -= 1) {
+    const threshold = (snapValues[index] + snapValues[index + 1]) / 2;
+    if (progress >= threshold) {
+      return index + 1;
+    }
+  }
+
+  return 0;
 }
 
-function getFeaturesIntroSnapProgress(stepIndex, stepCount) {
-  if (stepCount <= 1) return 0;
+function getFeaturesIntroSnapProgress(stepIndex, snapValues) {
+  if (!snapValues?.length) return 0;
 
-  return stepIndex / (stepCount - 1);
+  return snapValues[Math.max(0, Math.min(snapValues.length - 1, stepIndex))] ?? 0;
 }
 
 function getFeaturesIntroPhoneEnterOffset(direction) {
@@ -577,7 +598,7 @@ function bootFeaturesIntroDesktopPin() {
   function scrollDesktopToStep(stepIndex) {
     if (!desktopScrollTrigger || prefersReducedMotion) return;
 
-    scrollDesktopToProgress(getFeaturesIntroSnapProgress(stepIndex, FEATURES_INTRO_DESKTOP_STEP_COUNT));
+    scrollDesktopToProgress(getFeaturesIntroSnapProgress(stepIndex, snapProgressValues));
   }
 
   function scrollDesktopToProgress(progress) {
@@ -639,7 +660,7 @@ function bootFeaturesIntroDesktopPin() {
   function syncDesktopStepFromScroll(self) {
     if (!desktopQuery.matches || featuresIntroState.isAnimating) return;
 
-    const step = getFeaturesIntroStepFromProgress(self.progress, FEATURES_INTRO_DESKTOP_STEP_COUNT);
+    const step = getFeaturesIntroStepFromProgress(self.progress, snapProgressValues);
 
     if (step === featuresIntroState.desktopStepIndex) return;
 
@@ -1005,7 +1026,7 @@ function bootFeaturesIntroMobilePin() {
   function scrollMobileToStep(stepIndex) {
     if (!mobileScrollTrigger || prefersReducedMotion) return;
 
-    scrollMobileToProgress(getFeaturesIntroSnapProgress(stepIndex, FEATURES_INTRO_MOBILE_STEP_COUNT));
+    scrollMobileToProgress(getFeaturesIntroSnapProgress(stepIndex, snapProgressValues));
   }
 
   function scrollMobileToProgress(progress) {
@@ -1020,7 +1041,7 @@ function bootFeaturesIntroMobilePin() {
   function syncMobileStepFromScroll(self) {
     if (!mobileQuery.matches || featuresIntroState.isAnimating) return;
 
-    const step = getFeaturesIntroStepFromProgress(self.progress, FEATURES_INTRO_MOBILE_STEP_COUNT);
+    const step = getFeaturesIntroStepFromProgress(self.progress, snapProgressValues);
 
     if (step === featuresIntroState.mobileStepIndex) return;
 
@@ -1172,6 +1193,11 @@ const CLUB_SELECTOR_APP = {
   height: 754,
 };
 
+const CLUB_SELECTOR_STORY_APP = {
+  width: 390,
+  height: 702,
+};
+
 const CLUB_SELECTOR_TEAMS = [
   { code: "ARS", name: "Arsenal", logo: "logos/ars.png" },
   { code: "AVL", name: "Aston Villa", logo: "logos/avl.png" },
@@ -1300,12 +1326,14 @@ function applyClubAppScale(scaler, viewport, availableWidth, availableHeight, fi
 function applyStoryPhoneScale(scaler, viewport, availableWidth, availableHeight) {
   if (!scaler || !viewport || availableWidth <= 0) return;
 
-  const scale = availableWidth / CLUB_SELECTOR_APP.width;
+  const scale = availableWidth / CLUB_SELECTOR_STORY_APP.width;
   const slot = scaler.querySelector(".sl-club-story-app-scale-slot");
-  const scaledHeight = CLUB_SELECTOR_APP.height * scale;
   const screen = scaler.closest(".sl-club-selector-story-phone-screen");
+  const designHeight =
+    availableHeight > 0 ? availableHeight / scale : CLUB_SELECTOR_STORY_APP.height;
 
   viewport.style.setProperty("--sl-app-scale", String(scale));
+  viewport.style.height = `${designHeight}px`;
   viewport.style.left = "0px";
 
   if (screen) {
@@ -1532,15 +1560,20 @@ const CLUB_STORY_APP_ASSETS = {
   sidebar: "assets/app/Sidebar-Icon.png",
   filter: "assets/app/Filter-Icon.png",
   search: "assets/app/Search-Icon.png",
+  footerHome: "assets/app/Home-Icon-Selected.png",
+  footerMatches: "assets/app/Matches-Icon.png",
+  footerAlerts: "assets/app/Notification-Icon.png",
+  footerMore: "assets/app/More-Icon.png",
 };
 
-const APP_FOOTER_HOME_ICON = `<svg class="sl-app-home-footer-icon" viewBox="0 0 35 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M17.5 3 4 13.2V21h8.4v-6.3h10.2V21H31v-7.8L17.5 3z"/></svg>`;
+function buildAppFooterIconMarkup(src) {
+  return `<img class="sl-app-home-footer-icon" src="${src}" alt="" width="35" height="24" aria-hidden="true" />`;
+}
 
-const APP_FOOTER_MATCHES_ICON = `<svg class="sl-app-home-footer-icon" viewBox="0 0 35 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6 5h23a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm0 2v10h23V7H6zm3 2h5v2H9V9zm8 0h5v2h-5V9zm-8 4h5v2H9v-2zm8 0h5v2h-5v-2z"/></svg>`;
-
-const APP_FOOTER_ALERTS_ICON = `<svg class="sl-app-home-footer-icon" viewBox="0 0 35 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M17.5 4a5.5 5.5 0 0 0-5.5 5.5v3.1l-1.4 2.8a1 1 0 0 0 .9 1.4h11.9a1 1 0 0 0 .9-1.4l-1.4-2.8V9.5A5.5 5.5 0 0 0 17.5 4zm-2.2 13.5h4.4a2.2 2.2 0 1 1-4.4 0z"/></svg>`;
-
-const APP_FOOTER_MORE_ICON = `<svg class="sl-app-home-footer-icon" viewBox="0 0 35 24" aria-hidden="true" focusable="false"><circle fill="currentColor" cx="8.5" cy="12" r="2"/><circle fill="currentColor" cx="17.5" cy="12" r="2"/><circle fill="currentColor" cx="26.5" cy="12" r="2"/></svg>`;
+const APP_FOOTER_HOME_ICON = buildAppFooterIconMarkup(CLUB_STORY_APP_ASSETS.footerHome);
+const APP_FOOTER_MATCHES_ICON = buildAppFooterIconMarkup(CLUB_STORY_APP_ASSETS.footerMatches);
+const APP_FOOTER_ALERTS_ICON = buildAppFooterIconMarkup(CLUB_STORY_APP_ASSETS.footerAlerts);
+const APP_FOOTER_MORE_ICON = buildAppFooterIconMarkup(CLUB_STORY_APP_ASSETS.footerMore);
 
 const APP_FOOTER_CLUB_ICON = `<span class="sl-app-home-footer-club-mark">S</span>`;
 
@@ -1797,7 +1830,7 @@ async function hydrateClubStoryTwitterEmbeds(root) {
 
   try {
     const twttr = await loadTwitterWidgetsScript();
-    await twttr.widgets.load(container);
+    await twttr.widgets.load(container, { width: 390 });
 
     if (clubStoryPhoneScroll.socialActive) {
       const syncAfterEmbeds = () => {
@@ -2919,9 +2952,6 @@ const clubSelectorState = {
   transitioning: false,
   arrowShown: false,
   autoPickOfferShown: false,
-  autoPickRunning: false,
-  autoPickTimer: null,
-  autoPickStepTimer: null,
   currentStoryStep: 0,
   headlines: [],
 };
@@ -2978,30 +3008,9 @@ function hideAutoPickOffer() {
   autoEl.classList.remove("is-visible");
 }
 
-function clearRandomizerHighlights() {
-  document.querySelectorAll(".sl-app-team-card.is-randomizer-highlight").forEach((card) => {
-    card.classList.remove("is-randomizer-highlight");
-  });
-}
-
-function cancelAutoPickSequence({ resetOffer = true } = {}) {
-  if (clubSelectorState.autoPickTimer) {
-    window.clearTimeout(clubSelectorState.autoPickTimer);
-    clubSelectorState.autoPickTimer = null;
-  }
-
-  if (clubSelectorState.autoPickStepTimer) {
-    window.clearTimeout(clubSelectorState.autoPickStepTimer);
-    clubSelectorState.autoPickStepTimer = null;
-  }
-
-  clubSelectorState.autoPickRunning = false;
-  clearRandomizerHighlights();
-
-  if (resetOffer) {
-    clubSelectorState.autoPickOfferShown = false;
-    hideAutoPickOffer();
-  }
+function cancelAutoPickOffer() {
+  clubSelectorState.autoPickOfferShown = false;
+  hideAutoPickOffer();
 }
 
 function fadeSharedPhoneOut({ duration = 0.45 } = {}) {
@@ -3023,7 +3032,7 @@ function fadeSharedPhoneOut({ duration = 0.45 } = {}) {
 function selectClubCard(card, onClubSelected) {
   if (!card || clubSelectorState.transitioning || clubSelectorState.storyUnlocked) return;
 
-  cancelAutoPickSequence();
+  cancelAutoPickOffer();
 
   const grid = document.querySelector("#teams-grid");
   const nextButton = document.querySelector("#sl-club-selector-next-button");
@@ -3048,71 +3057,9 @@ function selectClubCard(card, onClubSelected) {
   }
 }
 
-function buildRandomizerSequence(cards, count) {
-  const pool = [...cards];
-  const sequence = [];
-
-  while (sequence.length < count && pool.length) {
-    const index = Math.floor(Math.random() * pool.length);
-    sequence.push(pool.splice(index, 1)[0]);
-  }
-
-  return sequence;
-}
-
-function runClubRandomizer(onClubSelected) {
-  const grid = document.querySelector("#teams-grid");
-  const cards = [...(grid?.querySelectorAll(".sl-app-team-card") || [])];
-
-  if (!cards.length || clubSelectorState.selectedCode || clubSelectorState.storyUnlocked) {
-    clubSelectorState.autoPickRunning = false;
-    return;
-  }
-
-  clubSelectorState.autoPickRunning = true;
-
-  const finalizeRandomPick = () => {
-    clearRandomizerHighlights();
-    const finalCard = cards[Math.floor(Math.random() * cards.length)];
-    clubSelectorState.autoPickRunning = false;
-    selectClubCard(finalCard, onClubSelected);
-  };
-
-  if (prefersReducedMotion) {
-    finalizeRandomPick();
-    return;
-  }
-
-  const highlightCount = 5 + Math.floor(Math.random() * 2);
-  const sequence = buildRandomizerSequence(cards, highlightCount);
-  const stepMs = 380;
-  let stepIndex = 0;
-
-  const showNextHighlight = () => {
-    if (clubSelectorState.selectedCode || clubSelectorState.storyUnlocked) {
-      cancelAutoPickSequence();
-      return;
-    }
-
-    clearRandomizerHighlights();
-
-    if (stepIndex >= sequence.length) {
-      clubSelectorState.autoPickStepTimer = window.setTimeout(finalizeRandomPick, stepMs);
-      return;
-    }
-
-    sequence[stepIndex].classList.add("is-randomizer-highlight");
-    stepIndex += 1;
-    clubSelectorState.autoPickStepTimer = window.setTimeout(showNextHighlight, stepMs);
-  };
-
-  showNextHighlight();
-}
-
-function beginAutoPickSequence(onClubSelected) {
+function showAutoPickOffer() {
   if (
     clubSelectorState.autoPickOfferShown ||
-    clubSelectorState.autoPickRunning ||
     clubSelectorState.selectedCode ||
     clubSelectorState.storyUnlocked ||
     clubSelectorState.transitioning
@@ -3128,14 +3075,9 @@ function beginAutoPickSequence(onClubSelected) {
     autoEl.hidden = false;
     autoEl.classList.add("is-visible");
   }
-
-  clubSelectorState.autoPickTimer = window.setTimeout(() => {
-    clubSelectorState.autoPickTimer = null;
-    runClubRandomizer(onClubSelected);
-  }, 2000);
 }
 
-function bootClubSelectorAutoPickScroll(onClubSelected) {
+function bootClubSelectorAutoPickScroll() {
   const pickStage = document.querySelector(".sl-club-selector-pick-stage");
   if (!pickStage) return;
 
@@ -3146,7 +3088,6 @@ function bootClubSelectorAutoPickScroll(onClubSelected) {
       if (
         !clubSelectorState.arrowShown ||
         clubSelectorState.autoPickOfferShown ||
-        clubSelectorState.autoPickRunning ||
         clubSelectorState.selectedCode ||
         clubSelectorState.storyUnlocked ||
         clubSelectorState.transitioning
@@ -3154,7 +3095,7 @@ function bootClubSelectorAutoPickScroll(onClubSelected) {
         return;
       }
 
-      beginAutoPickSequence(onClubSelected);
+      showAutoPickOffer();
     },
     { passive: true },
   );
@@ -3559,7 +3500,7 @@ function bootClubSelectorStory() {
         showClubSelectorPickArrow();
 
         if (clubSelectorState.arrowShown && !clubSelectorState.autoPickOfferShown) {
-          beginAutoPickSequence(transitionToStory);
+          showAutoPickOffer();
         }
       }
 
@@ -3614,7 +3555,7 @@ function bootClubSelectorStory() {
     if (clubSelectorState.transitioning) return;
 
     const runReset = () => {
-      cancelAutoPickSequence();
+      cancelAutoPickOffer();
       clubSelectorState.storyUnlocked = false;
       clubSelectorState.selectedCode = null;
       clubSelectorState.transitioning = false;
@@ -3847,7 +3788,7 @@ function bootClubSelectorStory() {
 
   changeClubButton?.addEventListener("click", resetToPickPhase);
   bootClubStoryStepper();
-  bootClubSelectorAutoPickScroll(transitionToStory);
+  bootClubSelectorAutoPickScroll();
 
   bootClubSelectorPickArrowHint();
   bootClubSelectorTeamPicker(transitionToStory);
