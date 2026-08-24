@@ -1055,7 +1055,8 @@ h2.sl-club-selector-title {
   min-height: 0;
   opacity: 1;
   visibility: visible;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .sl-club-story-visual {
@@ -1455,7 +1456,7 @@ h2.sl-club-selector-title {
 
 .sl-club-selector-story-phone-screen .sl-app-podcasts-see-more-row,
 .sl-club-selector-story-phone-screen .sl-app-videos-see-more-row,
-.sl-club-selector-story-phone-screen .sl-club-story-tweet:nth-child(n+2) {
+.sl-club-selector-story-phone-screen .sl-club-story-tweet:nth-child(n+3) {
   display: none;
 }
 
@@ -3073,6 +3074,7 @@ p.sl-feature-body {
 @media (min-width: 981px) {
   #sl-features-intro {
     --features-intro-desktop-phone-height: min(68vh, 865px);
+    --features-intro-desktop-column-gap: clamp(144px, 18vw, 240px);
   }
 
   .sl-features-intro-pin-shell {
@@ -3090,7 +3092,8 @@ p.sl-feature-body {
     height: 100%;
     margin-inline: auto;
     padding: clamp(32px, 7vh, 78px) max(34px, calc((100vw - var(--max)) / 2));
-    gap: clamp(24px, 4vh, 48px) clamp(48px, 6vw, 80px);
+    row-gap: clamp(24px, 4vh, 48px);
+    column-gap: var(--features-intro-desktop-column-gap);
   }
 
   .sl-features-intro-text-slot {
@@ -3517,7 +3520,10 @@ p.sl-spectator-body {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  margin-top: clamp(24px, 4vh, 36px);
+}
+
+.sl-spectator-nav {
+  display: none;
 }
 
 .sl-spectator-stage {
@@ -4471,23 +4477,26 @@ body.sl-contact-modal-open {
   .sl-spectator-carousel {
     --sl-spectator-slide-gap: 20px;
     --sl-spectator-slide-size: calc(100% - var(--sl-spectator-slide-gap));
-    --sl-spectator-media-half: min(175px, calc(var(--sl-spectator-slide-size) / 2));
+  }
+
+  .sl-spectator-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: clamp(24px, 4vh, 36px);
   }
 
   .sl-spectator-carousel .sl-spectator-arrow {
     display: flex;
+    position: static;
+    transform: none;
+    flex-shrink: 0;
   }
 
-  .sl-spectator-carousel .sl-spectator-arrow-prev {
-    left: calc(50% - var(--sl-spectator-media-half));
-    right: auto;
-    transform: translate(-50%, -50%);
-  }
-
-  .sl-spectator-carousel .sl-spectator-arrow-next {
-    left: calc(50% + var(--sl-spectator-media-half));
-    right: auto;
-    transform: translate(-50%, -50%);
+  .sl-spectator-carousel .sl-spectator-dots {
+    display: flex;
+    margin-top: 0;
   }
 
   .sl-spectator-carousel .sl-spectator-track {
@@ -4530,10 +4539,6 @@ body.sl-contact-modal-open {
     box-shadow: none;
   }
 
-  .sl-spectator-carousel .sl-spectator-dots {
-    display: flex;
-  }
-
   h2.sl-spectator-title {
     margin-bottom: clamp(28px, 4vh, 40px);
   }
@@ -4556,6 +4561,10 @@ body.sl-contact-modal-open {
 
   .sl-cta-home-downloads {
     flex-direction: row;
+  }
+
+  .sl-cta-qr {
+    display: none;
   }
 
   .feature-section.split.reverse .feature-text {

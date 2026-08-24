@@ -265,10 +265,7 @@ function bootContactPage() {
 
 function bootContactModal() {
   const trigger = document.getElementById("sl-footer-contact");
-  const triggerHref = trigger?.getAttribute("href") || "";
-  const opensModal = trigger && (triggerHref === "#" || triggerHref.endsWith("#"));
-
-  if (!opensModal) return;
+  if (!trigger || document.getElementById("sl-contact-page")) return;
 
   let modal = document.getElementById("sl-contact-modal");
   if (!modal) {

@@ -14,9 +14,9 @@ const CLUBS = {
   AVL: { name: "Aston Villa", tagId: 1458, slug: "aston-villa", cptId: 150 },
   BOU: { name: "Bournemouth", tagId: 1492, slug: "bournemouth", cptId: 177 },
   BRE: { name: "Brentford", tagId: 1506, slug: "brentford", cptId: 184 },
-  BHA: { name: "Brighton & Hove Albion", tagId: 12632, slug: "brighton-and-hove-albion", cptId: 8776 },
+  BHA: { name: "Brighton & Hove Albion", tagId: 6594, slug: "brighton-hove-albion", cptId: 8776 },
   CHE: { name: "Chelsea", tagId: 1530, slug: "chelsea", cptId: 193 },
-  COV: { name: "Coventry City", tagId: 12633, slug: "coventry-city-fc", cptId: null },
+  COV: { name: "Coventry City", tagId: 11226, slug: "coventry-city", cptId: 34855 },
   CRY: { name: "Crystal Palace", tagId: 1568, slug: "crystal-palace", cptId: 194 },
   EVE: { name: "Everton", tagId: 1582, slug: "everton", cptId: 201 },
   FUL: { name: "Fulham", tagId: 1598, slug: "fulham", cptId: 209 },
@@ -33,10 +33,7 @@ const CLUBS = {
 };
 
 /** stm_tweet club_tag taxonomy slugs when they differ from CLUBS.slug */
-const CLUB_TAG_TAXONOMY_SLUG_OVERRIDES = {
-  BHA: "brighton-hove-albion",
-  COV: "coventry-city",
-};
+const CLUB_TAG_TAXONOMY_SLUG_OVERRIDES = {};
 
 let publicationExcludesCache = null;
 
@@ -214,9 +211,10 @@ async function fetchTopStoriesRaw(clubCode, { limit = TOP_STORIES_PER_PAGE } = {
   const excludeParam =
     publicationTagExclude.length > 0 ? { publication_tag_exclude: publicationTagExclude.join(",") } : {};
 
+  const clubTagSlug = getClubTagTaxonomySlug(clubCode);
   const scopeAttempts = [
     { club_tag: String(club.tagId) },
-    { club_tag_slug: club.slug },
+    { club_tag_slug: clubTagSlug },
   ];
 
   let items = [];
@@ -366,7 +364,7 @@ async function fetchPodcastsForClub(clubCode, options = {}) {
   }
 
   const items = await fetchPodcasts({
-    clubTagSlug: club.slug,
+    clubTagSlug: getClubTagTaxonomySlug(clubCode),
     perPage: options.perPage || 4,
   });
 
@@ -452,13 +450,14 @@ async function fetchVideosForClub(clubCode, options = {}) {
   }
 
   const items = await fetchVideos({
-    clubTagSlug: club.slug,
+    clubTagSlug: getClubTagTaxonomySlug(clubCode),
     perPage: options.perPage || 6,
   });
 
   return toVideosFeed(items);
 }
 
+const SOCIAL_STORY_MIN_TWEETS = 2;
 const SOCIAL_STORY_MAX_ACCOUNTS = 4;
 const SOCIAL_STORY_MAX_TWEETS_PER_USER = 5;
 const SOCIAL_STORY_TWEET_LIMIT = 5;
@@ -630,31 +629,36 @@ async function fetchXTweetsViaProxy(username, maxResults = SOCIAL_STORY_MAX_TWEE
   return [];
 }
 
-async function fetchClubSocialTweets(accounts, { maxAccounts, maxPerUser, limit }) {
-  const topAccounts = accounts.slice(0, maxAccounts);
-  if (!topAccounts.length) return [];
-
-  const results = await Promise.all(
-    topAccounts.map(async (account) => {
-      const tweets = await fetchXTweetsViaProxy(account.username, maxPerUser);
-      return tweets.map((tweet) =>
-        mapXTweetToFeedItem({
-          ...tweet,
-          source_username: tweet.source_username || account.username,
-        }),
-      );
-    }),
-  );
+async function fetchClubSocialTweets(accounts, { maxAccounts, maxPerUser, limit, minTweets = SOCIAL_STORY_MIN_TWEETS }) {
+  if (!accounts.length) return [];
 
   const seen = new Set();
-  const merged = results
-    .flat()
-    .filter((tweet) => {
-      if (seen.has(tweet.id)) return false;
+  let merged = [];
+
+  for (let offset = 0; offset < accounts.length && merged.length < limit; offset += maxAccounts) {
+    const batch = accounts.slice(offset, offset + maxAccounts);
+    const results = await Promise.all(
+      batch.map(async (account) => {
+        const tweets = await fetchXTweetsViaProxy(account.username, maxPerUser);
+        return tweets.map((tweet) =>
+          mapXTweetToFeedItem({
+            ...tweet,
+            source_username: tweet.source_username || account.username,
+          }),
+        );
+      }),
+    );
+
+    for (const tweet of results.flat()) {
+      if (seen.has(tweet.id)) continue;
       seen.add(tweet.id);
-      return true;
-    })
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      merged.push(tweet);
+    }
+
+    merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    if (merged.length >= Math.max(minTweets, limit)) break;
+  }
 
   return merged.slice(0, limit);
 }
@@ -682,17 +686,22 @@ async function fetchSocialFeedForClub(clubCode, options = {}) {
     return toSocialFeed([]);
   }
 
-  const limit = options.perPage || SOCIAL_STORY_TWEET_LIMIT;
+  const limit = Math.max(SOCIAL_STORY_MIN_TWEETS, options.perPage || SOCIAL_STORY_TWEET_LIMIT);
   const maxAccounts = options.maxAccounts || SOCIAL_STORY_MAX_ACCOUNTS;
   const maxPerUser = options.maxTweetsPerUser || SOCIAL_STORY_MAX_TWEETS_PER_USER;
+  const minTweets = options.minTweets || SOCIAL_STORY_MIN_TWEETS;
 
   const posts = await fetchSocialFeedPostsByClubSlug(clubTagSlug);
   const accounts = rankClubSocialAccounts(posts);
 
-  let tweets = await fetchClubSocialTweets(accounts, { maxAccounts, maxPerUser, limit });
+  let tweets = await fetchClubSocialTweets(accounts, { maxAccounts, maxPerUser, limit, minTweets });
 
   if (!tweets.length && accounts.length) {
-    tweets = accounts.slice(0, limit).map(mapProfileFallbackToFeedItem);
+    const fallbackCount = Math.min(
+      limit,
+      Math.max(minTweets, accounts.length),
+    );
+    tweets = accounts.slice(0, fallbackCount).map(mapProfileFallbackToFeedItem);
   }
 
   return toSocialFeed(tweets);

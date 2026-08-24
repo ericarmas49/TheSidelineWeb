@@ -553,17 +553,6 @@
           <h2 class="sl-spectator-title">Be more than a spectator</h2>
           <div class="sl-spectator-carousel" id="sl-spectator-carousel">
             <div class="sl-spectator-stage">
-              <button
-                type="button"
-                class="sl-spectator-arrow sl-spectator-arrow-prev"
-                id="sl-spectator-prev"
-                aria-label="Previous feature"
-                hidden
-              >
-                <svg class="sl-spectator-arrow-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-              </button>
               <div
                 class="sl-spectator-track"
                 id="sl-spectator-track"
@@ -635,6 +624,25 @@
             </article>
               </div>
             </div>
+            </div>
+            <div class="sl-spectator-nav">
+              <button
+                type="button"
+                class="sl-spectator-arrow sl-spectator-arrow-prev"
+                id="sl-spectator-prev"
+                aria-label="Previous feature"
+                hidden
+              >
+                <svg class="sl-spectator-arrow-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+              <div class="sl-spectator-dots" id="sl-spectator-dots" role="tablist" aria-label="Choose feature" hidden>
+                <button type="button" class="sl-spectator-dot is-active" role="tab" aria-label="Come ready" aria-selected="true" data-spectator-slide="0"></button>
+                <button type="button" class="sl-spectator-dot" role="tab" aria-label="Watch. Track. React." aria-selected="false" data-spectator-slide="1"></button>
+                <button type="button" class="sl-spectator-dot" role="tab" aria-label="Make your case" aria-selected="false" data-spectator-slide="2"></button>
+                <button type="button" class="sl-spectator-dot" role="tab" aria-label="Never clock off" aria-selected="false" data-spectator-slide="3"></button>
+              </div>
               <button
                 type="button"
                 class="sl-spectator-arrow sl-spectator-arrow-next"
@@ -646,12 +654,6 @@
                   <path d="M9.5 5.5 16 12l-6.5 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
               </button>
-            </div>
-            <div class="sl-spectator-dots" id="sl-spectator-dots" role="tablist" aria-label="Choose feature" hidden>
-              <button type="button" class="sl-spectator-dot is-active" role="tab" aria-label="Come ready" aria-selected="true" data-spectator-slide="0"></button>
-              <button type="button" class="sl-spectator-dot" role="tab" aria-label="Watch. Track. React." aria-selected="false" data-spectator-slide="1"></button>
-              <button type="button" class="sl-spectator-dot" role="tab" aria-label="Make your case" aria-selected="false" data-spectator-slide="2"></button>
-              <button type="button" class="sl-spectator-dot" role="tab" aria-label="Never clock off" aria-selected="false" data-spectator-slide="3"></button>
             </div>
           </div>
         </div>

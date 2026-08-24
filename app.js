@@ -1922,7 +1922,7 @@ async function loadSocialFeedForClub(code) {
   updateClubStorySocialStage(code);
 
   try {
-    const feed = await window.SideLineAPI.fetchSocialFeedForClub(code, { perPage: 5 });
+    const feed = await window.SideLineAPI.fetchSocialFeedForClub(code, { perPage: 5, minTweets: 2 });
     socialFeedCache[cacheKey] = feed;
   } catch (error) {
     console.warn("Social feed fetch failed:", error);
