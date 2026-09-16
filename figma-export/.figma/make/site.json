@@ -1,0 +1,11 @@
+{
+  "description": "Provides English soccer fans with comprehensive team news, podcasts, scores, and live updates in one app for an immersive fan experience.",
+  "title": "Sideline",
+  "robots": {
+    "index": true
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

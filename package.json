@@ -4,9 +4,12 @@
   "type": "module",
   "description": "SideLine marketing site",
   "scripts": {
-    "dev": "node scripts/local-wp-proxy.mjs 8080",
+    "dev": "npm run dev --prefix figma-export",
+    "dev:v1": "node scripts/local-wp-proxy.mjs 8080",
     "dev:static": "python3 -m http.server 8080",
     "dev:vercel": "vercel dev --listen 8080",
+    "build": "npm run build --prefix figma-export",
+    "preview": "npm run preview --prefix figma-export",
     "deploy": "vercel --prod"
   }
 }

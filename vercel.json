@@ -1,9 +1,16 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "buildCommand": "",
+  "buildCommand": "cd figma-export && npm install && npm run build",
+  "outputDirectory": "figma-export/dist",
   "installCommand": "",
   "framework": null,
+  "rewrites": [
+    {
+      "source": "/((?!api/|privacy/|terms-of-service/|cookie-notice/|contact-us/|\\.well-known/).*)",
+      "destination": "/index.html"
+    }
+  ],
   "headers": [
     {
       "source": "/.well-known/apple-app-site-association",

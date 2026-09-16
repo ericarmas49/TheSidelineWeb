@@ -1,0 +1,28 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "4VL33WK2PW.com.thesidelineapp.app",
+       "paths": [
+        "/club/*",
+        "/club-feed",
+        "/club-feed/*",
+        "/match/*",
+        "/podcast/*",
+        "/video/*",
+        "/player/*",
+        "/article/*",
+        "/open",
+        "/open/*",
+        "/home",
+        "/matches",
+        "/table",
+        "/messages",
+        "/more",
+        "/more/*"
+      ]
+      }
+    ]
+  }
+}
