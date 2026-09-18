@@ -7,7 +7,7 @@
   "framework": null,
   "rewrites": [
     {
-      "source": "/((?!api/|privacy/|terms-of-service/|cookie-notice/|contact-us/|\\.well-known/).*)",
+      "source": "/((?!api/|privacy/|terms-of-service/|cookie-notice/|contact-us/|\\.well-known/|styles\\.css|contact-modal\\.js|screenshots/|club-publication-excludes\\.json).*)",
       "destination": "/index.html"
     }
   ],
