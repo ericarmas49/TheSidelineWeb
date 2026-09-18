@@ -176,7 +176,7 @@ function toTopStoriesFeed(items, clubCode, teamColor, teamAbbrev, limit = TOP_ST
         id: String(item.id),
         layout: isFeatured ? "featured" : "row",
         title: item.title,
-        excerpt: isFeatured ? item.excerpt : undefined,
+        excerpt: item.excerpt || undefined,
         publicationTag: item.publication ? item.publication.toUpperCase() : undefined,
         imageUrl: imageUrl || null,
         teamColor,
@@ -567,6 +567,12 @@ function buildXTweetEmbedMarkup(tweetUrl) {
   return `<blockquote class="twitter-tweet" data-theme="dark" data-dnt="true" data-width="390"><a href="${escapeHtml(tweetUrl)}"></a></blockquote>`;
 }
 
+function buildXProfileTimelineEmbedMarkup(profileUrl) {
+  if (!profileUrl) return "";
+
+  return `<a class="twitter-timeline" data-width="320" data-height="420" data-theme="light" data-tweet-limit="1" data-chrome="noheader nofooter noborders transparent" data-dnt="true" href="${escapeHtml(profileUrl)}">Posts</a>`;
+}
+
 function formatXTweetHtml(tweet) {
   const text = String(tweet.text || "").trim();
   if (!text) return "";
@@ -585,12 +591,15 @@ function formatXTweetHtml(tweet) {
 
 function mapXTweetToFeedItem(tweet) {
   const tweetUrl = buildXTweetUrl(tweet);
+  const username = tweet.source_username || tweet.sourceUsername || "";
 
   return {
     id: String(tweet.id),
     html: formatXTweetHtml(tweet),
     embedHtml: buildXTweetEmbedMarkup(tweetUrl),
     tweetUrl,
+    username,
+    text: String(tweet.text || "").trim(),
     createdAt: tweet.created_at || "",
   };
 }
@@ -608,8 +617,11 @@ function mapProfileFallbackToFeedItem(account) {
         </a>
       </div>
     `.trim(),
-    embedHtml: "",
+    embedHtml: buildXProfileTimelineEmbedMarkup(profileUrl),
     tweetUrl: profileUrl,
+    username: account.username,
+    displayName: account.label,
+    text: "",
     isProfileFallback: true,
   };
 }
@@ -670,6 +682,9 @@ function toSocialFeed(tweets) {
       html: tweet.html,
       embedHtml: tweet.embedHtml,
       tweetUrl: tweet.tweetUrl,
+      username: tweet.username || "",
+      displayName: tweet.displayName || "",
+      text: tweet.text || "",
       isProfileFallback: Boolean(tweet.isProfileFallback),
     })),
   };

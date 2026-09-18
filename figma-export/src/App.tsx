@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type ReactNode } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, type ReactNode } from 'react'
 import wordmarkLightImg from '@/imports/SIDELINE1-1.png'
 import emailHeaderWelcomeImg from '@/imports/Universal_Email_Header.png'
 import appScreenshotImg from '@/imports/01KZ9HS7M08TGMZQ1M4XJ7QYHF.jpeg'
@@ -24,9 +24,8 @@ import whyImg3 from '@/imports/Cut-Through-The-Noise_Cross-Section-4.jpeg'
 import whyImg4 from '@/imports/Experience-Your-Club_History-Main-Hero-Image-2.jpeg'
 import whyImg5 from '@/imports/IMG_1512-1.jpeg'
 import whyImg6 from '@/imports/Screenshot_2026-09-15_at_12.14.20_PM.jpeg'
-import arsenalBadgeImg from '@/imports/Arsenal_FC.svg.png'
-import liverpoolBadgeImg from '@/imports/Logo-Liverpool.png'
-import hullBadgeImg from '@/imports/Hull_City_A.F.C._logo.svg.png'
+import { SocialFeedEmbeds } from '@/components/SocialFeedEmbeds'
+import { getClubLogo } from '@/lib/clubLogos'
 import qrDarkImg from '@/imports/sideline-download-qr-dark.png'
 import qrWhiteImg from '@/imports/sideline-download-qr-white-1.png'
 import appPhoneMockupImg from '@/imports/App_Store_Screenshots___Messaging-2.png'
@@ -257,27 +256,27 @@ type Club = {
 }
 
 const CLUBS: Club[] = [
-  { id: 'ars', name: 'Arsenal',        newsletter: 'Arsenal Insider',      color: '#EF0107', onColor: '#fff', logo: arsenalBadgeImg },
-  { id: 'avl', name: 'Aston Villa',    newsletter: 'Villa Insider',        color: '#7B003C', onColor: '#fff', logo: 'https://resources.premierleague.com/premierleague/badges/t7.png' },
-  { id: 'bou', name: 'Bournemouth',    newsletter: 'Cherries Insider',     color: '#C00000', onColor: '#fff', logo: 'https://resources.premierleague.com/premierleague/badges/t91.png' },
-  { id: 'bre', name: 'Brentford',      newsletter: 'Bees Insider',         color: '#E30613', onColor: '#fff', logo: 'https://resources.premierleague.com/premierleague/badges/t94.png' },
-  { id: 'bha', name: 'Brighton',       newsletter: 'Seagulls Insider',     color: '#0057B8', onColor: '#fff', logo: 'https://resources.premierleague.com/premierleague/badges/t36.png' },
-  { id: 'che', name: 'Chelsea',        newsletter: 'Blues Insider',        color: '#034694', onColor: '#fff', logo: 'https://resources.premierleague.com/premierleague/badges/t8.png' },
-  { id: 'cov', name: 'Coventry',       newsletter: 'Sky Blues Insider',    color: '#3AADE1', onColor: '#0a1f2e', logo: 'https://resources.premierleague.com/premierleague/badges/t52.png' },
-  { id: 'cry', name: 'Crystal Palace', newsletter: 'Eagles Insider',       color: '#1B458F', onColor: '#fff', logo: 'https://resources.premierleague.com/premierleague/badges/t31.png' },
-  { id: 'eve', name: 'Everton',        newsletter: 'Toffees Insider',      color: '#003399', onColor: '#fff', logo: 'https://resources.premierleague.com/premierleague/badges/t11.png' },
-  { id: 'ful', name: 'Fulham',         newsletter: 'Cottagers Insider',    color: '#1A1A1A', onColor: '#fff', logo: 'https://resources.premierleague.com/premierleague/badges/t54.png' },
-  { id: 'hul', name: 'Hull City',      newsletter: 'Tigers Insider',       color: '#E8A215', onColor: '#1a0e00', logo: hullBadgeImg },
-  { id: 'ips', name: 'Ipswich',        newsletter: 'Blues Insider',        color: '#0044A9', onColor: '#fff', logo: 'https://resources.premierleague.com/premierleague/badges/t40.png' },
-  { id: 'lee', name: 'Leeds United',   newsletter: 'Leeds Insider',        color: '#1D428A', onColor: '#fff', logo: 'https://resources.premierleague.com/premierleague/badges/t2.png' },
-  { id: 'liv', name: 'Liverpool',      newsletter: 'Reds Insider',         color: '#C8102E', onColor: '#fff', logo: liverpoolBadgeImg },
-  { id: 'mci', name: 'Man City',       newsletter: 'City Insider',         color: '#6CABDD', onColor: '#0d1b2e', logo: 'https://resources.premierleague.com/premierleague/badges/t43.png' },
-  { id: 'mun', name: 'Man United',     newsletter: 'United Insider',       color: '#DA291C', onColor: '#fff', logo: 'https://resources.premierleague.com/premierleague/badges/t1.png' },
-  { id: 'new', name: 'Newcastle',      newsletter: 'Magpies Insider',      color: '#241F20', onColor: '#fff', logo: 'https://resources.premierleague.com/premierleague/badges/t4.png' },
-  { id: 'nfo', name: 'Forest',         newsletter: 'Forest Insider',       color: '#E53233', onColor: '#fff', logo: 'https://resources.premierleague.com/premierleague/badges/t17.png' },
-  { id: 'sun', name: 'Sunderland',     newsletter: 'Black Cats Insider',   color: '#EB172B', onColor: '#fff', logo: 'https://resources.premierleague.com/premierleague/badges/t56.png' },
-  { id: 'tot', name: 'Spurs',          newsletter: 'Spurs Insider',        color: '#132257', onColor: '#fff', logo: 'https://resources.premierleague.com/premierleague/badges/t6.png' },
-  { id: 'whu', name: 'West Ham',       newsletter: 'Hammers Insider',      color: '#7A263A', onColor: '#fff', logo: 'https://resources.premierleague.com/premierleague/badges/t21.png' },
+  { id: 'ars', name: 'Arsenal',        newsletter: 'Arsenal Insider',      color: '#EF0107', onColor: '#fff', logo: getClubLogo('ars') },
+  { id: 'avl', name: 'Aston Villa',    newsletter: 'Villa Insider',        color: '#7B003C', onColor: '#fff', logo: getClubLogo('avl') },
+  { id: 'bou', name: 'Bournemouth',    newsletter: 'Cherries Insider',     color: '#C00000', onColor: '#fff', logo: getClubLogo('bou') },
+  { id: 'bre', name: 'Brentford',      newsletter: 'Bees Insider',         color: '#E30613', onColor: '#fff', logo: getClubLogo('bre') },
+  { id: 'bha', name: 'Brighton',       newsletter: 'Seagulls Insider',     color: '#0057B8', onColor: '#fff', logo: getClubLogo('bha') },
+  { id: 'che', name: 'Chelsea',        newsletter: 'Blues Insider',        color: '#034694', onColor: '#fff', logo: getClubLogo('che') },
+  { id: 'cov', name: 'Coventry',       newsletter: 'Sky Blues Insider',    color: '#3AADE1', onColor: '#0a1f2e', logo: getClubLogo('cov') },
+  { id: 'cry', name: 'Crystal Palace', newsletter: 'Eagles Insider',       color: '#1B458F', onColor: '#fff', logo: getClubLogo('cry') },
+  { id: 'eve', name: 'Everton',        newsletter: 'Toffees Insider',      color: '#003399', onColor: '#fff', logo: getClubLogo('eve') },
+  { id: 'ful', name: 'Fulham',         newsletter: 'Cottagers Insider',    color: '#1A1A1A', onColor: '#fff', logo: getClubLogo('ful') },
+  { id: 'hul', name: 'Hull City',      newsletter: 'Tigers Insider',       color: '#E8A215', onColor: '#1a0e00', logo: getClubLogo('hul') },
+  { id: 'ips', name: 'Ipswich',        newsletter: 'Blues Insider',        color: '#0044A9', onColor: '#fff', logo: getClubLogo('ips') },
+  { id: 'lee', name: 'Leeds United',   newsletter: 'Leeds Insider',        color: '#1D428A', onColor: '#fff', logo: getClubLogo('lee') },
+  { id: 'liv', name: 'Liverpool',      newsletter: 'Reds Insider',         color: '#C8102E', onColor: '#fff', logo: getClubLogo('liv') },
+  { id: 'mci', name: 'Man City',       newsletter: 'City Insider',         color: '#6CABDD', onColor: '#0d1b2e', logo: getClubLogo('mci') },
+  { id: 'mun', name: 'Man United',     newsletter: 'United Insider',       color: '#DA291C', onColor: '#fff', logo: getClubLogo('mun') },
+  { id: 'new', name: 'Newcastle',      newsletter: 'Magpies Insider',      color: '#241F20', onColor: '#fff', logo: getClubLogo('new') },
+  { id: 'nfo', name: 'Forest',         newsletter: 'Forest Insider',       color: '#E53233', onColor: '#fff', logo: getClubLogo('nfo') },
+  { id: 'sun', name: 'Sunderland',     newsletter: 'Black Cats Insider',   color: '#EB172B', onColor: '#fff', logo: getClubLogo('sun') },
+  { id: 'tot', name: 'Spurs',          newsletter: 'Spurs Insider',        color: '#132257', onColor: '#fff', logo: getClubLogo('tot') },
+  { id: 'whu', name: 'West Ham',       newsletter: 'Hammers Insider',      color: '#7A263A', onColor: '#fff', logo: getClubLogo('whu') },
 ]
 
 const PHOTO =
@@ -1971,7 +1970,7 @@ const APP_STEPS = [
     id: 'sources',
     label: 'Select Your Sources',
     headline: 'Shape your\ncoverage.',
-    body: "Not everything deserves a place. Choose the publications, podcasts, channels and feeds you trust to keep you informed, entertained and connected to your club. Then, set your preferences to see more of what you want, filter out what you don't and fine-tune your coverage to make it truly yours.",
+    body: "Choose the publications, podcasts, channels and feeds you trust to keep you informed. Then, set your preferences to see more of what you want and filter out what you don't to make it truly yours.",
     detail: ['50+ premium publishers', 'Independent journalists', 'Podcast networks', 'Social accounts'],
     accent: '#c8102e',
     img: chooseSourcesImg,
@@ -1987,9 +1986,9 @@ const APP_STEPS = [
   },
   {
     id: 'way',
-    label: 'Experience',
+    label: 'Explore It All',
     headline: 'Get closer to\nyour club.',
-    body: "Give your fandom a home with the analysis, stats, and history,that help you know more, go deeper and bring more to every conversation.",
+    body: "Give your fandom a home with the analysis, stats, and history that help you know more, go deeper and bring more to every conversation.",
     detail: ['Zero algorithmic interference', 'Chronological or ranked', 'Offline reading', 'Daily digest mode'],
     accent: '#c8102e',
     img: discoverImg,
@@ -2076,18 +2075,52 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
   useEffect(() => {
     const SNAP_PX = 12
     const last = APP_STEPS.length - 1
+    let lastScrollY = window.scrollY
+    let pinRaf = 0
 
     const getRect = () => sectionRef.current?.getBoundingClientRect() ?? null
 
     const isNearPinned = (rect: DOMRect) =>
       Math.abs(rect.top) <= SNAP_PX && rect.bottom > SNAP_PX
 
-    const maintainPin = () => {
+    const isInLockZone = (rect: DOMRect) => {
+      const vh = window.innerHeight
+      if (rect.bottom <= 0 || rect.top >= vh) return false
+      if (isNearPinned(rect)) return true
+      // Fast scroll overshoot — section top passed viewport top but section still visible
+      if (rect.top < -SNAP_PX && rect.bottom > vh * 0.45) return true
+      // Nearly pinned — catches fast scroll that lands slightly below the pin point
+      if (rect.top > SNAP_PX && rect.top < vh * 0.2) return true
+      return false
+    }
+
+    const snapToSectionTop = () => {
       const rect = getRect()
-      if (!rect || !isNearPinned(rect)) return
-      if (Math.abs(rect.top) > 1) {
-        window.scrollTo({ top: window.scrollY + rect.top })
+      if (!rect || Math.abs(rect.top) <= 1) return
+      window.scrollTo({ top: window.scrollY + rect.top })
+    }
+
+    const stopPinLoop = () => {
+      if (pinRaf) {
+        cancelAnimationFrame(pinRaf)
+        pinRaf = 0
       }
+    }
+
+    const startPinLoop = () => {
+      if (pinRaf) return
+      const loop = () => {
+        if (!lockedRef.current) {
+          stopPinLoop()
+          return
+        }
+        const rect = getRect()
+        if (rect && Math.abs(rect.top) > 1) {
+          window.scrollTo({ top: window.scrollY + rect.top })
+        }
+        pinRaf = requestAnimationFrame(loop)
+      }
+      pinRaf = requestAnimationFrame(loop)
     }
 
     const canIntercept = (goingDown: boolean) => {
@@ -2101,14 +2134,25 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
       if (goingDown && cur === last) {
         exitedDownRef.current = true
         lockedRef.current = false
+        stopPinLoop()
         return true
       }
       if (!goingDown && cur === 0) {
         exitedUpRef.current = true
         lockedRef.current = false
+        stopPinLoop()
         return true
       }
       return false
+    }
+
+    const beginLock = (goingDown: boolean) => {
+      if (lockedRef.current) return false
+      lockedRef.current = true
+      goTo(goingDown ? 0 : last, { animate: false })
+      snapToSectionTop()
+      startPinLoop()
+      return true
     }
 
     const advanceStep = (goingDown: boolean) => {
@@ -2125,25 +2169,50 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
       }
     }
 
-    const onWheel = (e: WheelEvent) => {
-      const goingDown = e.deltaY > 0
+    const handleLockInput = (goingDown: boolean, delta: number, preventDefault?: () => void) => {
       const rect = getRect()
-      if (!rect || !isNearPinned(rect)) {
-        lockedRef.current = false
+      if (!rect || !isInLockZone(rect)) {
+        if (!isNearPinned(rect)) lockedRef.current = false
+        return false
+      }
+      if (!canIntercept(goingDown)) return false
+      if (tryExit(goingDown)) return true
+      preventDefault?.()
+      snapToSectionTop()
+      if (beginLock(goingDown)) return true
+      if (Math.abs(delta) < 8) return true
+      advanceStep(goingDown)
+      return true
+    }
+
+    const onScroll = () => {
+      const rect = getRect()
+      if (!rect) return
+      const scrollY = window.scrollY
+      const goingDown = scrollY > lastScrollY
+      lastScrollY = scrollY
+
+      if (!isInLockZone(rect)) {
+        if (!isNearPinned(rect)) lockedRef.current = false
         return
       }
       if (!canIntercept(goingDown)) return
-      if (tryExit(goingDown)) return
-      e.preventDefault()
-      e.stopImmediatePropagation()
-      maintainPin()
-      if (!lockedRef.current) {
-        lockedRef.current = true
-        goTo(goingDown ? 0 : last, { animate: false })
+
+      // Catch momentum / fast scroll that skips the narrow pin window
+      if (!isNearPinned(rect)) {
+        snapToSectionTop()
+        beginLock(goingDown)
         return
       }
-      if (Math.abs(e.deltaY) < 8) return
-      advanceStep(goingDown)
+
+      if (lockedRef.current) snapToSectionTop()
+    }
+
+    const onWheel = (e: WheelEvent) => {
+      handleLockInput(e.deltaY > 0, e.deltaY, () => {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+      })
     }
 
     const observer = new IntersectionObserver(([entry]) => {
@@ -2151,6 +2220,7 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
         exitedDownRef.current = false
         exitedUpRef.current = false
         lockedRef.current = false
+        stopPinLoop()
       }
     }, { threshold: 0 })
     if (sectionRef.current) observer.observe(sectionRef.current)
@@ -2158,41 +2228,32 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
     let touchStartY = 0
     const onTouchStart = (e: TouchEvent) => { touchStartY = e.touches[0].clientY }
     const onTouchMove = (e: TouchEvent) => {
+      const touchY = e.touches[0]?.clientY ?? touchStartY
+      const goingDown = touchStartY - touchY > 0
       const rect = getRect()
-      if (!rect || !isNearPinned(rect)) return
-      const goingDown = touchStartY - (e.touches[0]?.clientY ?? touchStartY) > 0
+      if (!rect || !isInLockZone(rect)) return
       if (!canIntercept(goingDown)) return
       if (tryExit(goingDown)) return
       e.preventDefault()
-      maintainPin()
+      snapToSectionTop()
     }
     const onTouchEnd = (e: TouchEvent) => {
       const deltaY = touchStartY - e.changedTouches[0].clientY
       if (Math.abs(deltaY) < 40) return
-      const goingDown = deltaY > 0
-      const rect = getRect()
-      if (!rect || !isNearPinned(rect)) {
-        lockedRef.current = false
-        return
-      }
-      if (!canIntercept(goingDown)) return
-      if (tryExit(goingDown)) return
-      if (!lockedRef.current) {
-        lockedRef.current = true
-        goTo(goingDown ? 0 : last, { animate: false })
-        return
-      }
-      advanceStep(goingDown)
+      handleLockInput(deltaY > 0, deltaY)
     }
 
     window.addEventListener('wheel', onWheel, { passive: false, capture: true })
+    window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('touchstart', onTouchStart, { passive: true, capture: true })
     window.addEventListener('touchmove', onTouchMove, { passive: false, capture: true })
     window.addEventListener('touchend', onTouchEnd, { passive: true, capture: true })
 
     return () => {
       observer.disconnect()
+      stopPinLoop()
       window.removeEventListener('wheel', onWheel, { capture: true } as EventListenerOptions)
+      window.removeEventListener('scroll', onScroll)
       window.removeEventListener('touchstart', onTouchStart, { capture: true } as EventListenerOptions)
       window.removeEventListener('touchmove', onTouchMove, { capture: true } as EventListenerOptions)
       window.removeEventListener('touchend', onTouchEnd, { capture: true } as EventListenerOptions)
@@ -2255,31 +2316,31 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
       {isMobile ? (
         <div className="sl-how-it-works-mobile" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {/* Text — top, centered */}
-          <div id="sl-howitworks-content" className="sl-howitworks-content" style={{ flexShrink: 0, padding: '32px 0 8px', textAlign: 'center', opacity: textVisible ? 1 : 0, transform: textVisible ? 'translateY(8%)' : 'translateY(calc(8% + 12px))', transition: 'opacity 0.2s ease, transform 0.2s ease' }}>
+          <div id="sl-howitworks-content" className="sl-howitworks-content" style={{ flexShrink: 0, padding: '20px 0 8px', textAlign: 'center', opacity: textVisible ? 1 : 0, transform: textVisible ? 'translateY(8%)' : 'translateY(calc(8% + 12px))', transition: 'opacity 0.2s ease, transform 0.2s ease' }}>
             <h2 id="sl-howitworks-title" className="sl-howitworks-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: '32px', color: '#fff', margin: '0 0 10px', lineHeight: 1.05, letterSpacing: '-0.5px' }}>{step.headline}</h2>
             <p id="sl-howitworks-body" className="sl-howitworks-body" style={{ fontFamily: "'Inter', sans-serif", fontSize: '14px', color: 'rgba(255,255,255,0.55)', margin: 0, lineHeight: 1.7 }}>{step.body}</p>
           </div>
-          {/* Phone — bottom, flush to edge, as large as possible */}
-          <div className="sl-howitworks-media" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', overflow: 'hidden', opacity: textVisible ? 1 : 0, transition: 'opacity 0.2s ease' }}>
+          {/* Phone — large, offset down so only the top of the screen shows */}
+          <div className="sl-howitworks-media" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflow: 'hidden', paddingTop: '0', opacity: textVisible ? 1 : 0, transition: 'opacity 0.2s ease' }}>
             <img
               id="sl-howitworks-phone"
               className="sl-howitworks-phone"
               src={step.img}
               alt={step.label}
-              style={{ height: 'min(750px, 55vh)', width: 'auto', maxWidth: '100%', objectFit: 'contain', objectPosition: 'bottom', display: 'block' }}
+              style={{ height: 'min(750px, 76vh)', width: 'auto', maxWidth: 'none', objectFit: 'contain', objectPosition: 'top', display: 'block', flexShrink: 0 }}
             />
           </div>
         </div>
       ) : (
         <div className="sl-how-it-works-desktop" style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '80px', alignItems: 'center', minHeight: 0 }}>
           {/* Left — text */}
-          <div id="sl-howitworks-content" className="sl-howitworks-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', paddingLeft: '24px', opacity: textVisible ? 1 : 0, transform: textVisible ? 'translateY(-12%)' : 'translateY(calc(-12% + 12px))', transition: 'opacity 0.2s ease, transform 0.2s ease' }}>
+          <div id="sl-howitworks-content" className="sl-howitworks-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '20px 0 8px', paddingLeft: '135px', opacity: textVisible ? 1 : 0, transform: textVisible ? 'translateY(-12%)' : 'translateY(calc(-12% + 12px))', transition: 'opacity 0.2s ease, transform 0.2s ease' }}>
             <h2 id="sl-howitworks-title" className="sl-howitworks-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: '54px', color: '#fff', margin: '0 0 24px', lineHeight: 1.05, whiteSpace: 'pre-line', letterSpacing: '-0.5px' }}>{step.headline}</h2>
             <p id="sl-howitworks-body" className="sl-howitworks-body" style={{ fontFamily: "'Inter', sans-serif", fontSize: '15px', color: 'rgba(255,255,255,0.55)', margin: 0, lineHeight: 1.8, maxWidth: '380px' }}>{step.body}</p>
           </div>
           {/* Phone mockup — centered */}
           <div className="sl-howitworks-media" style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
-            <img id="sl-howitworks-phone" className="sl-howitworks-phone" src={step.img} alt={step.label} style={{ maxHeight: 'min(70vh, 560px)', maxWidth: '100%', width: 'auto', objectFit: 'contain', display: 'block' }} />
+            <img id="sl-howitworks-phone" className="sl-howitworks-phone" src={step.img} alt={step.label} style={{ maxHeight: 'min(70vh, 750px)', maxWidth: '100%', width: 'auto', objectFit: 'contain', display: 'block' }} />
           </div>
         </div>
       )}
@@ -2302,7 +2363,7 @@ function MatchDaySection({ px, isMobile }: { px: string; isMobile: boolean }) {
   return (
     <section id="sl-matchday" className="sl-matchday sl-section" style={{ padding: `32px ${px} 0` }}>
       <div className="sl-section-eyebrow-row" style={{ padding: '0', marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <span id="sl-matchday-eyebrow" className="sl-section-eyebrow" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#888' }}>From One Match to the next</span>
+        <span id="sl-matchday-eyebrow" className="sl-section-eyebrow" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#888' }}>Match Experience</span>
       </div>
       <h2 id="sl-matchday-title" className="sl-section-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '28px' : '42px', color: '#0a0a0a', margin: '0 0 32px', lineHeight: 1.1, letterSpacing: '-0.4px' }}>
         Your daily club companion.
@@ -2408,7 +2469,7 @@ const APP_STORE_URL = 'https://apps.apple.com/us/app/sideline-club/id6789336406'
 
 const FEED_LOADING_SECTIONS = ['Posts', 'Podcasts', 'Social', 'Videos'] as const
 
-function ClubFeedLoadingNotice({ clubName, accentColor, isMobile }: { clubName: string; accentColor: string; isMobile: boolean }) {
+function ClubFeedLoadingNotice({ clubName, accentColor }: { clubName: string; accentColor: string }) {
   const [sectionIndex, setSectionIndex] = useState(0)
 
   useEffect(() => {
@@ -2436,14 +2497,14 @@ function ClubFeedLoadingNotice({ clubName, accentColor, isMobile }: { clubName: 
         inset: 0,
         zIndex: 10,
         display: 'flex',
-        alignItems: isMobile ? 'flex-start' : 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
-        paddingTop: isMobile ? '20px' : 0,
+        paddingTop: '13%',
         background: 'rgba(255,255,255,0.86)',
         backdropFilter: 'blur(3px)',
       }}
     >
-      <div className="sl-club-feed-loading-inner" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', padding: '24px', textAlign: 'center', position: isMobile ? 'sticky' : 'relative', top: isMobile ? '20px' : undefined }}>
+      <div className="sl-club-feed-loading-inner" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', padding: '24px', textAlign: 'center', position: 'sticky', top: '20px' }}>
         <div
           className="sl-club-feed-loading-spinner"
           style={{
@@ -2459,6 +2520,189 @@ function ClubFeedLoadingNotice({ clubName, accentColor, isMobile }: { clubName: 
           Getting latest {clubName} {section.toLowerCase()}…
         </p>
       </div>
+    </div>
+  )
+}
+
+const CLUB_PICKER_SETS = 3
+
+function InfiniteClubPicker({
+  activeClubId,
+  hoveredClubId,
+  onSelect,
+  onHover,
+  onLeave,
+}: {
+  activeClubId: string
+  hoveredClubId: string | null
+  onSelect: (club: Club) => void
+  onHover: (clubId: string) => void
+  onLeave: () => void
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const segmentWidthRef = useRef(0)
+  const initializedRef = useRef(false)
+  const [showMore, setShowMore] = useState(false)
+
+  const extendedClubs = useMemo(
+    () =>
+      Array.from({ length: CLUB_PICKER_SETS }, (_, setIdx) =>
+        CLUBS.map(cl => ({ ...cl, pickerKey: `${setIdx}-${cl.id}` })),
+      ).flat(),
+    [],
+  )
+
+  const updateMetrics = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    segmentWidthRef.current = el.scrollWidth / CLUB_PICKER_SETS
+    setShowMore(segmentWidthRef.current > el.clientWidth + 4)
+  }, [])
+
+  const normalizeScroll = useCallback(() => {
+    const el = scrollRef.current
+    const setWidth = segmentWidthRef.current
+    if (!el || setWidth <= 0) return
+    if (el.scrollLeft >= setWidth * 2) {
+      el.scrollLeft -= setWidth
+    } else if (el.scrollLeft < setWidth) {
+      el.scrollLeft += setWidth
+    }
+  }, [])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    const initScroll = () => {
+      updateMetrics()
+      const setWidth = segmentWidthRef.current
+      if (setWidth > 0 && !initializedRef.current) {
+        el.scrollLeft = setWidth
+        initializedRef.current = true
+      }
+    }
+
+    initScroll()
+    el.addEventListener('scroll', normalizeScroll, { passive: true })
+
+    const ro = new ResizeObserver(() => {
+      updateMetrics()
+      normalizeScroll()
+    })
+    ro.observe(el)
+    const list = el.querySelector('.sl-club-picker-list')
+    if (list) ro.observe(list)
+    window.addEventListener('resize', initScroll)
+
+    return () => {
+      el.removeEventListener('scroll', normalizeScroll)
+      window.removeEventListener('resize', initScroll)
+      ro.disconnect()
+    }
+  }, [normalizeScroll, updateMetrics])
+
+  const scrollMore = () => {
+    scrollRef.current?.scrollBy({ left: 160, behavior: 'smooth' })
+  }
+
+  return (
+    <div id="sl-club-picker" className="sl-club-picker" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
+      <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+        <div
+          id="sl-club-picker-scroll"
+          className="sl-club-picker-scroll"
+          ref={scrollRef}
+          style={{ overflowX: 'auto', overflowY: 'visible', scrollbarWidth: 'none' }}
+        >
+          <div
+            id="sl-club-picker-list"
+            className="sl-club-picker-list"
+            style={{ display: 'flex', gap: '12px', paddingBottom: '6px', paddingTop: '6px', paddingRight: '4px', alignItems: 'center' }}
+          >
+            {extendedClubs.map((cl, idx) => {
+              const setIdx = Math.floor(idx / CLUBS.length)
+              const active = cl.id === activeClubId
+              const hovered = hoveredClubId === cl.id
+              return (
+                <button
+                  key={cl.pickerKey}
+                  id={setIdx === 1 ? `sl-club-btn-${cl.id}` : undefined}
+                  className={`sl-club-btn${active ? ' is-active' : ''}`}
+                  onClick={() => onSelect(cl)}
+                  onMouseEnter={() => onHover(cl.id)}
+                  onMouseLeave={onLeave}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '5px 12px 5px 6px',
+                    borderRadius: '100px',
+                    border: active ? `1.5px solid ${cl.color}` : `1.5px solid ${hovered ? cl.color + '88' : '#e0e0e0'}`,
+                    background: active ? cl.color : hovered ? `${cl.color}10` : '#fff',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <img
+                    src={cl.logo}
+                    alt={cl.name}
+                    className="sl-club-btn-logo"
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      objectFit: 'contain',
+                      flexShrink: 0,
+                      background: active ? 'rgba(255,255,255,0.95)' : 'transparent',
+                      borderRadius: '50%',
+                      padding: active ? '1px' : 0,
+                    }}
+                  />
+                  <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', fontWeight: 600, color: active ? cl.onColor : hovered ? cl.color : '#444', whiteSpace: 'nowrap', letterSpacing: '0.01em', transition: 'color 0.15s' }}>
+                    {cl.name}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        {showMore && (
+          <div
+            className="sl-club-picker-fade"
+            aria-hidden
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: '40px',
+              background: 'linear-gradient(to right, transparent, #fff 85%)',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+      </div>
+      {showMore && (
+        <span
+          id="sl-club-picker-more"
+          className="sl-club-picker-more"
+          onClick={scrollMore}
+          style={{
+            fontFamily: "'Inter', sans-serif",
+            fontSize: '11px',
+            color: '#666',
+            letterSpacing: '0.04em',
+            whiteSpace: 'nowrap',
+            cursor: 'pointer',
+            userSelect: 'none',
+            flexShrink: 0,
+            paddingLeft: '2px',
+          }}
+        >
+          more →
+        </span>
+      )}
     </div>
   )
 }
@@ -2496,10 +2740,10 @@ function GooglePlayBadge({ id, className, height }: { id: string; className: str
 function HomepageMockup() {
   const [feedClub, setFeedClub] = useState<Club>(CLUBS.find(c => c.id === 'ars')!)
   const [hoveredClub, setHoveredClub] = useState<string | null>(null)
-  const clubScrollRef = useRef<HTMLDivElement>(null)
   const isMobile = useIsMobile()
   const isWide = useIsWide()
   const px = isMobile ? '20px' : '48px'
+  const videoCardWidth = isMobile ? '280px' : '350px'
   const { loading: feedLoading, articles: liveArticles, podcasts: livePodcasts, social: liveSocial, videos: liveVideos } = useClubFeed(feedClub.id, feedClub.color)
   const mockFeed = FEED_BY_CLUB[feedClub.id] ?? genericFeed(feedClub)
   const articleFeed = liveArticles ?? mockFeed
@@ -2521,8 +2765,8 @@ function HomepageMockup() {
   const videoItems = liveVideos.length ? liveVideos : mockVideos
   const footerLinks = [
     { label: 'Contact Us', href: '/contact-us' },
-    { label: 'Privacy Policy', href: '/privacy/' },
-    { label: 'Terms of Use', href: '/terms-of-service/' },
+    { label: 'Privacy Policy', href: '/privacy' },
+    { label: 'Terms of Use', href: '/terms-of-service' },
   ]
 
   const rule2 = (color = '#0a0a0a') => (
@@ -2542,8 +2786,22 @@ function HomepageMockup() {
         </span>
         {!isMobile && (
           <nav id="sl-top-nav" className="sl-top-nav" aria-label="Top navigation" style={{ display: 'flex', gap: '24px' }}>
-            {['Product', 'Clubs', 'Newsletter', 'About'].map(l => (
-              <span key={l} id={`sl-top-nav-${l.toLowerCase()}`} className="sl-top-nav-link" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}>{l}</span>
+            {[
+              { label: 'Why Sideline', id: 'why-sideline', href: '#sl-why' },
+              { label: 'Latest News', id: 'latest-news', href: '#sl-club-hub' },
+              { label: 'How It Works', id: 'how-it-works', href: '#sl-how-it-works' },
+              { label: 'Match Experience', id: 'match-experience', href: '#sl-matchday' },
+              { label: 'Contact Us', id: 'contact-us', href: '/contact-us' },
+            ].map(({ label, id, href }) => (
+              <a
+                key={id}
+                id={`sl-top-nav-${id}`}
+                className="sl-top-nav-link"
+                href={href}
+                style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', textDecoration: 'none' }}
+              >
+                {label}
+              </a>
             ))}
           </nav>
         )}
@@ -2627,15 +2885,11 @@ function HomepageMockup() {
             alt="Sideline app screens"
             style={{ position: 'absolute', right: '24px', bottom: '32px', maxHeight: 'calc(100% - 32px)', width: 'auto', display: 'block' }}
           />
-          <a id="sl-hero-download-bar" className="sl-hero-download-bar" href="https://sideline.app/download" target="_blank" rel="noopener noreferrer" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#000', padding: '9px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', cursor: 'pointer' }}>
+          <div id="sl-hero-download-bar" className="sl-hero-download-bar" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#000', padding: '9px 18px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
             <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#fff' }}>
-              Download FOR FREE now
+              Available For Free Now
             </span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="5" y1="12" x2="19" y2="12" />
-              <polyline points="12 5 19 12 12 19" />
-            </svg>
-          </a>
+          </div>
         </div>
       </section>
 
@@ -2675,7 +2929,7 @@ function HomepageMockup() {
       <section id="sl-club-hub" className="sl-club-hub sl-section" style={{ padding: `0 ${px} 0` }}>
         {rule2()}
         <div className="sl-section-eyebrow-row" style={{ padding: '10px 0 0', marginBottom: '8px' }}>
-          <span id="sl-club-hub-eyebrow" className="sl-section-eyebrow" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#888' }}>Choose Your Club</span>
+          <span id="sl-club-hub-eyebrow" className="sl-section-eyebrow" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#888' }}>Latest News</span>
         </div>
         <div className="sl-section-heading-row" style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
           <h2 id="sl-club-hub-title" className="sl-section-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '28px' : '38px', color: '#0a0a0a', margin: 0, lineHeight: 1.15, letterSpacing: '-0.3px' }}>
@@ -2684,57 +2938,16 @@ function HomepageMockup() {
         </div>
 
         {/* Club selector */}
-        <div id="sl-club-picker" className="sl-club-picker" style={{ position: 'relative', marginBottom: '32px' }}>
-          <div id="sl-club-picker-scroll" className="sl-club-picker-scroll" ref={clubScrollRef} style={{ overflowX: 'auto', overflowY: 'visible', scrollbarWidth: 'none' }}>
-            <div id="sl-club-picker-list" className="sl-club-picker-list" style={{ display: 'flex', gap: '12px', paddingBottom: '6px', paddingTop: '6px', paddingRight: '80px', alignItems: 'center' }}>
-              {CLUBS.map(cl => {
-                const active = cl.id === feedClub.id
-                const hovered = hoveredClub === cl.id
-                return (
-                  <button
-                    key={cl.id}
-                    id={`sl-club-btn-${cl.id}`}
-                    className={`sl-club-btn${active ? ' is-active' : ''}`}
-                    onClick={() => setFeedClub(cl)}
-                    onMouseEnter={() => setHoveredClub(cl.id)}
-                    onMouseLeave={() => setHoveredClub(null)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '6px',
-                      padding: '5px 12px 5px 6px',
-                      borderRadius: '100px',
-                      border: active ? `1.5px solid ${cl.color}` : `1.5px solid ${hovered ? cl.color + '88' : '#e0e0e0'}`,
-                      background: active ? cl.color : hovered ? `${cl.color}10` : '#fff',
-                      cursor: 'pointer', flexShrink: 0,
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <img
-                      src={cl.logo}
-                      alt={cl.name}
-                      className="sl-club-btn-logo"
-                      style={{
-                        width: '18px',
-                        height: '18px',
-                        objectFit: 'contain',
-                        flexShrink: 0,
-                        background: active ? 'rgba(255,255,255,0.95)' : 'transparent',
-                        borderRadius: '50%',
-                        padding: active ? '1px' : 0,
-                      }}
-                    />
-                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', fontWeight: 600, color: active ? cl.onColor : hovered ? cl.color : '#444', whiteSpace: 'nowrap', letterSpacing: '0.01em', transition: 'color 0.15s' }}>{cl.name}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-          <div className="sl-club-picker-fade" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '90px', background: 'linear-gradient(to right, transparent, #fff 55%)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-            <span id="sl-club-picker-more" className="sl-club-picker-more" onClick={() => clubScrollRef.current?.scrollBy({ left: 160, behavior: 'smooth' })} style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#666', letterSpacing: '0.04em', paddingRight: '4px', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }}>more →</span>
-          </div>
-        </div>
+        <InfiniteClubPicker
+          activeClubId={feedClub.id}
+          hoveredClubId={hoveredClub}
+          onSelect={setFeedClub}
+          onHover={setHoveredClub}
+          onLeave={() => setHoveredClub(null)}
+        />
 
         <div id="sl-club-feed-wrap" className="sl-club-feed-wrap" style={{ position: 'relative' }}>
-              {feedLoading && <ClubFeedLoadingNotice clubName={feedClub.name} accentColor={feedClub.color} isMobile={isMobile} />}
+              {feedLoading && <ClubFeedLoadingNotice clubName={feedClub.name} accentColor={feedClub.color} />}
 
               {/* ── Quadrant feed ── */}
               <div id="sl-club-feed" className="sl-club-feed" data-club={feedClub.id} style={{ position: 'relative', width: '100%', minWidth: 0, overflow: isMobile ? 'hidden' : undefined }}>
@@ -2753,20 +2966,29 @@ function HomepageMockup() {
                       <img src={articleFeed.lead.img} alt={feedClub.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     </div>
                     <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: feedClub.color, display: 'block', marginBottom: '8px' }}>{articleFeed.lead.source}</span>
-                    <h3 className="sl-feed-article-headline" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '18px' : '20px', color: '#0a0a0a', margin: 0, lineHeight: 1.2 }}>{articleFeed.lead.headline}</h3>
+                    <h3 className="sl-feed-article-headline" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '18px' : '20px', color: '#0a0a0a', margin: '0 0 10px', lineHeight: 1.2 }}>{articleFeed.lead.headline}</h3>
+                    {articleFeed.lead.body && (
+                      <p className="sl-feed-article-excerpt" style={{ fontFamily: "'Inter', sans-serif", fontSize: isMobile ? '12px' : '13px', color: '#666', margin: 0, lineHeight: 1.65, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>
+                        {articleFeed.lead.body}
+                      </p>
+                    )}
                   </div>
-                  <div id="sl-feed-articles-list" className="sl-feed-articles-list" style={{ paddingBottom: '28px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1 }}>
+                  <div id="sl-feed-articles-list" className="sl-feed-articles-list" style={{ paddingBottom: '28px', paddingRight: isMobile ? '0' : '25%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1 }}>
                     {articleFeed.secondary.map((s, i, arr) => (
                       <div key={i} id={`sl-feed-article-${i + 1}`} className="sl-feed-article-item" style={{ paddingBottom: i < arr.length - 1 ? '16px' : '0', marginBottom: i < arr.length - 1 ? '16px' : '0', display: 'flex', gap: '12px', alignItems: 'flex-start', flex: 1 }}>
                         {s.img && (
-                          <div style={{ flexShrink: 0, width: '72px', height: '54px', overflow: 'hidden', borderRadius: '3px' }}>
-                            <img src={s.img} alt={s.headline} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          <div style={{ flexShrink: 0, width: '150px', height: '100px', overflow: 'hidden', borderRadius: '3px' }}>
+                            <img src={s.img} alt={s.headline} style={{ width: '150px', height: '100px', objectFit: 'cover', display: 'block' }} />
                           </div>
                         )}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: feedClub.color, display: 'block', marginBottom: '5px' }}>{s.source}</span>
                           <h4 style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: '14px', color: '#0a0a0a', margin: '0 0 6px', lineHeight: 1.3 }}>{s.headline}</h4>
-                          {s.body && <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#777', margin: 0, lineHeight: 1.6, display: isMobile ? 'none' : '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{s.body}</p>}
+                          {s.body && (
+                            <p className="sl-feed-article-excerpt" style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#777', margin: 0, lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>
+                              {s.body}
+                            </p>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -2784,8 +3006,8 @@ function HomepageMockup() {
                     {podcastItems.map((p, i) => (
                       <div key={i} id={`sl-feed-podcast-${i + 1}`} className="sl-feed-podcast-card" style={{ display: 'flex', gap: isMobile ? '10px' : '12px', alignItems: 'center', padding: isMobile ? '10px' : '12px', border: '1px solid #e8e8e8', borderRadius: '12px', background: '#f8f8f8', minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
                         {/* Artwork with play overlay */}
-                        <div style={{ position: 'relative', width: isMobile ? '56px' : '64px', height: isMobile ? '56px' : '64px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }}>
-                          <img src={p.thumb} alt={p.show} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        <div style={{ position: 'relative', width: '100px', height: '100px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }}>
+                          <img src={p.thumb} alt={p.show} style={{ width: '100px', height: '100px', objectFit: 'cover', display: 'block' }} />
                           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.32)' }} />
                           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -2818,28 +3040,13 @@ function HomepageMockup() {
                     <div style={{ flex: 1, height: '1px', background: '#e0e0e0' }} />
                   </div>
                   <div id="sl-feed-social-scroll" className="sl-feed-social-scroll" style={{ overflowX: 'auto', scrollbarWidth: 'none', marginLeft: '-4px', paddingLeft: '4px' }}>
-                    <div id="sl-feed-social-list" className="sl-feed-social-list" style={{ display: 'flex', flexDirection: 'row', gap: '12px', paddingBottom: '4px', width: 'max-content' }}>
-                      {liveSocial.length ? liveSocial.map((tweet) => (
-                        <a
-                          key={tweet.id}
-                          id={`sl-feed-social-${tweet.id}`}
-                          className="sl-feed-social-card"
-                          href={tweet.tweetUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ flexShrink: 0, width: '260px', border: '1px solid #e0e0e0', borderRadius: '10px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '0', textDecoration: 'none', background: '#666', color: '#fff' }}
-                        >
-                          <div
-                            style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', lineHeight: 1.55, flex: 1 }}
-                            dangerouslySetInnerHTML={{ __html: tweet.html }}
-                          />
-                        </a>
-                      )) : (
-                        <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', color: '#888' }}>
-                          {feedLoading ? 'Loading social…' : 'No social posts available for this club right now.'}
-                        </span>
-                      )}
-                    </div>
+                    {liveSocial.length ? (
+                      <SocialFeedEmbeds tweets={liveSocial} />
+                    ) : (
+                      <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', color: '#888' }}>
+                        {feedLoading ? 'Loading social…' : 'No social posts available for this club right now.'}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2853,9 +3060,9 @@ function HomepageMockup() {
                 <div id="sl-feed-videos-scroll" className="sl-feed-videos-scroll" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
                   <div id="sl-feed-videos-list" className="sl-feed-videos-list" style={{ display: 'flex', gap: '16px', paddingBottom: '4px' }}>
                     {videoItems.map((v, i) => (
-                      <div key={i} id={`sl-feed-video-${i + 1}`} className="sl-feed-video-card" style={{ flexShrink: 0, width: '220px' }}>
+                      <div key={i} id={`sl-feed-video-${i + 1}`} className="sl-feed-video-card" style={{ flexShrink: 0, width: videoCardWidth }}>
                         {/* Thumbnail */}
-                        <div style={{ width: '220px', aspectRatio: '16/9', background: '#111', borderRadius: '8px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', cursor: 'pointer' }}>
+                        <div style={{ width: videoCardWidth, aspectRatio: '16/9', background: '#111', borderRadius: '8px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', cursor: 'pointer' }}>
                           {v.thumbnailUrl ? (
                             <img src={v.thumbnailUrl} alt={v.title} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
@@ -2920,19 +3127,19 @@ function HomepageMockup() {
 
           {/* Social icons */}
           <div id="sl-footer-social" className="sl-footer-social" aria-label="Social media" style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-            <a id="sl-footer-social-x" className="sl-footer-social-link sl-footer-social-x" href="https://x.com/TheSidelineClub" aria-label="Follow SideLine on X" style={{ display: 'flex', opacity: 0.5, transition: 'opacity 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5' }}>
+            <a id="sl-footer-social-x" className="sl-footer-social-link sl-footer-social-x" href="https://x.com/TheSidelineClub" target="_blank" rel="noopener noreferrer" aria-label="Follow SideLine on X" style={{ display: 'flex', opacity: 0.5, transition: 'opacity 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L2.012 2.25h6.962l4.265 5.638L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" fill="#fff"/>
               </svg>
             </a>
-            <a id="sl-footer-social-instagram" className="sl-footer-social-link sl-footer-social-instagram" href="https://www.instagram.com/thesideline_club/" aria-label="Follow SideLine on Instagram" style={{ display: 'flex', opacity: 0.5, transition: 'opacity 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5' }}>
+            <a id="sl-footer-social-instagram" className="sl-footer-social-link sl-footer-social-instagram" href="https://www.instagram.com/thesideline_club/" target="_blank" rel="noopener noreferrer" aria-label="Follow SideLine on Instagram" style={{ display: 'flex', opacity: 0.5, transition: 'opacity 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
                 <rect x="2" y="2" width="20" height="20" rx="5" stroke="#fff" strokeWidth="1.75"/>
                 <circle cx="12" cy="12" r="4.5" stroke="#fff" strokeWidth="1.75"/>
                 <circle cx="17.5" cy="6.5" r="1" fill="#fff"/>
               </svg>
             </a>
-            <a id="sl-footer-social-linkedin" className="sl-footer-social-link sl-footer-social-linkedin" href="https://www.linkedin.com/company/thesideline/posts/" aria-label="Follow SideLine on LinkedIn" style={{ display: 'flex', opacity: 0.5, transition: 'opacity 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5' }}>
+            <a id="sl-footer-social-linkedin" className="sl-footer-social-link sl-footer-social-linkedin" href="https://www.linkedin.com/company/thesideline/posts/" target="_blank" rel="noopener noreferrer" aria-label="Follow SideLine on LinkedIn" style={{ display: 'flex', opacity: 0.5, transition: 'opacity 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
                 <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z" stroke="#fff" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/><circle cx="4" cy="4" r="2" stroke="#fff" strokeWidth="1.75"/>
               </svg>

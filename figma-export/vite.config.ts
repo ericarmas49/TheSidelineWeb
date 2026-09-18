@@ -5,6 +5,35 @@ import path from 'node:path'
 
 import siteConfiguration from './.figma/make/site.json'
 
+const LEGAL_PAGE_ROUTES = ['/contact-us', '/privacy', '/terms-of-service', '/cookie-notice']
+
+/** Serve static legal pages in dev/preview (without trailing slash). */
+function legalPagesPlugin(): Plugin {
+  const rewriteLegalPage = (url: string | undefined) => {
+    const [pathname, search = ''] = (url ?? '').split('?')
+    const query = search ? `?${search}` : ''
+    const normalized = pathname.replace(/\/$/, '')
+    if (LEGAL_PAGE_ROUTES.includes(normalized) || LEGAL_PAGE_ROUTES.includes(pathname)) {
+      return `${normalized}/index.html${query}`
+    }
+    return null
+  }
+
+  const attach = (server: { middlewares: { use: (fn: (req: { url?: string }, res: unknown, next: () => void) => void) => void } }) => {
+    server.middlewares.use((req, _res, next) => {
+      const rewritten = rewriteLegalPage(req.url)
+      if (rewritten) req.url = rewritten
+      next()
+    })
+  }
+
+  return {
+    name: 'legal-pages',
+    configureServer: attach,
+    configurePreviewServer: attach,
+  }
+}
+
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // .figma/make/deploy-preview passes `--mode development` for cached-preview builds.
@@ -19,6 +48,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
+      legalPagesPlugin(),
       figmaSiteConfiguration(siteConfiguration),
       figmaErrorOverlayReplay(),
       figmaReactRefreshBoundaryFallback(),
@@ -137,7 +167,10 @@ function figmaSiteConfiguration(config: FigmaSiteConfiguration): Plugin {
           tags.push({ tag: 'meta', attrs: { name: 'robots', content: 'noindex, nofollow' }, injectTo: 'head' })
         }
         if (favicon) {
-          tags.push({ tag: 'link', attrs: { rel: 'icon', href: favicon }, injectTo: 'head' })
+          tags.push(
+            { tag: 'link', attrs: { rel: 'icon', href: favicon, type: 'image/png' }, injectTo: 'head' },
+            { tag: 'link', attrs: { rel: 'apple-touch-icon', href: favicon }, injectTo: 'head' },
+          )
         }
         if (title) {
           tags.push({ tag: 'meta', attrs: { property: 'og:title', content: title }, injectTo: 'head' })

@@ -29,7 +29,11 @@ export type LivePodcast = {
 export type LiveSocialTweet = {
   id: string
   html: string
+  embedHtml: string
   tweetUrl: string
+  username?: string
+  displayName?: string
+  text?: string
   isProfileFallback?: boolean
 }
 
@@ -90,6 +94,7 @@ function mapArticlesFeed(
       img: item.imageUrl || undefined,
       source: item.publicationTag || 'Article',
       headline: item.title,
+      body: item.excerpt || undefined,
     })),
   }
 }
@@ -128,7 +133,11 @@ function mapSocialFeed(
   return (feed?.tweets ?? []).slice(0, 6).map((tweet) => ({
     id: tweet.id,
     html: tweet.html,
+    embedHtml: tweet.embedHtml ?? '',
     tweetUrl: tweet.tweetUrl,
+    username: tweet.username ?? '',
+    displayName: tweet.displayName ?? '',
+    text: tweet.text ?? '',
     isProfileFallback: tweet.isProfileFallback,
   }))
 }

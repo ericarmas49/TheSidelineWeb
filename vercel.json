@@ -6,8 +6,16 @@
   "installCommand": "",
   "framework": null,
   "rewrites": [
+    { "source": "/contact-us", "destination": "/contact-us/index.html" },
+    { "source": "/contact-us/", "destination": "/contact-us/index.html" },
+    { "source": "/privacy", "destination": "/privacy/index.html" },
+    { "source": "/privacy/", "destination": "/privacy/index.html" },
+    { "source": "/terms-of-service", "destination": "/terms-of-service/index.html" },
+    { "source": "/terms-of-service/", "destination": "/terms-of-service/index.html" },
+    { "source": "/cookie-notice", "destination": "/cookie-notice/index.html" },
+    { "source": "/cookie-notice/", "destination": "/cookie-notice/index.html" },
     {
-      "source": "/((?!api/|privacy/|terms-of-service/|cookie-notice/|contact-us/|\\.well-known/|styles\\.css|contact-modal\\.js|screenshots/|club-publication-excludes\\.json).*)",
+      "source": "/((?!api/|privacy|terms-of-service|cookie-notice|contact-us|favicon\\.png|\\.well-known/|styles\\.css|contact-modal\\.js|screenshots/|club-publication-excludes\\.json).*)",
       "destination": "/index.html"
     }
   ],
