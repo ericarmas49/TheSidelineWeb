@@ -2034,11 +2034,14 @@ const MATCH_PHASES = [
 function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: boolean; accentColor: string }) {
   const [active, setActive] = useState(0)
   const [textVisible, setTextVisible] = useState(true)
-  const scrollRef = useRef<HTMLDivElement>(null)
   const sectionRef = useRef<HTMLElement>(null)
   const navRef = useRef<HTMLDivElement>(null)
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
   const activeRef = useRef(0)
+  const stepLockRef = useRef(false)
+  const exitedDownRef = useRef(false)
+  const exitedUpRef = useRef(false)
+  const lockedRef = useRef(false)
   const step = APP_STEPS[active]
 
   const goTo = (i: number, { animate = true }: { animate?: boolean } = {}) => {
@@ -2058,14 +2061,6 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
     }
   }
 
-  const scrollToStep = (i: number) => {
-    const wrapper = scrollRef.current
-    if (!wrapper) return
-    const vh = window.innerHeight
-    const target = wrapper.offsetTop + i * vh
-    window.scrollTo({ top: target, behavior: 'smooth' })
-  }
-
   // Scroll active tab into view in the horizontal nav
   useEffect(() => {
     const tab = tabRefs.current[active]
@@ -2077,60 +2072,143 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
     nav.scrollTo({ left: tabLeft - navWidth / 2 + tabWidth / 2, behavior: 'smooth' })
   }, [active])
 
-  // Pin the panel while the user scrolls through each step (1 viewport height per step)
+  // Lock scroll while the user steps through all four panels
   useEffect(() => {
-    const wrapper = scrollRef.current
-    if (!wrapper) return
+    const SNAP_PX = 12
+    const last = APP_STEPS.length - 1
 
-    let ticking = false
+    const getRect = () => sectionRef.current?.getBoundingClientRect() ?? null
 
-    const updateStepFromScroll = () => {
-      ticking = false
-      const maxScroll = Math.max(wrapper.offsetHeight - window.innerHeight, 0)
-      const relativeScroll = Math.min(Math.max(window.scrollY - wrapper.offsetTop, 0), maxScroll)
-      const last = APP_STEPS.length - 1
-      const vh = window.innerHeight || 1
-      const stepIndex = Math.min(last, Math.floor(relativeScroll / vh))
-      goTo(stepIndex, { animate: true })
-    }
+    const isNearPinned = (rect: DOMRect) =>
+      Math.abs(rect.top) <= SNAP_PX && rect.bottom > SNAP_PX
 
-    const onScroll = () => {
-      if (!ticking) {
-        ticking = true
-        requestAnimationFrame(updateStepFromScroll)
+    const maintainPin = () => {
+      const rect = getRect()
+      if (!rect || !isNearPinned(rect)) return
+      if (Math.abs(rect.top) > 1) {
+        window.scrollTo({ top: window.scrollY + rect.top })
       }
     }
 
-    window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onScroll, { passive: true })
-    updateStepFromScroll()
+    const canIntercept = (goingDown: boolean) => {
+      if (goingDown && exitedDownRef.current) return false
+      if (!goingDown && exitedUpRef.current) return false
+      return true
+    }
+
+    const tryExit = (goingDown: boolean) => {
+      const cur = activeRef.current
+      if (goingDown && cur === last) {
+        exitedDownRef.current = true
+        lockedRef.current = false
+        return true
+      }
+      if (!goingDown && cur === 0) {
+        exitedUpRef.current = true
+        lockedRef.current = false
+        return true
+      }
+      return false
+    }
+
+    const advanceStep = (goingDown: boolean) => {
+      if (stepLockRef.current) return
+      const cur = activeRef.current
+      if (goingDown && cur < last) {
+        stepLockRef.current = true
+        goTo(cur + 1)
+        setTimeout(() => { stepLockRef.current = false }, 700)
+      } else if (!goingDown && cur > 0) {
+        stepLockRef.current = true
+        goTo(cur - 1)
+        setTimeout(() => { stepLockRef.current = false }, 700)
+      }
+    }
+
+    const onWheel = (e: WheelEvent) => {
+      const goingDown = e.deltaY > 0
+      const rect = getRect()
+      if (!rect || !isNearPinned(rect)) {
+        lockedRef.current = false
+        return
+      }
+      if (!canIntercept(goingDown)) return
+      if (tryExit(goingDown)) return
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      maintainPin()
+      if (!lockedRef.current) {
+        lockedRef.current = true
+        goTo(goingDown ? 0 : last, { animate: false })
+        return
+      }
+      if (Math.abs(e.deltaY) < 8) return
+      advanceStep(goingDown)
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) {
+        exitedDownRef.current = false
+        exitedUpRef.current = false
+        lockedRef.current = false
+      }
+    }, { threshold: 0 })
+    if (sectionRef.current) observer.observe(sectionRef.current)
+
+    let touchStartY = 0
+    const onTouchStart = (e: TouchEvent) => { touchStartY = e.touches[0].clientY }
+    const onTouchMove = (e: TouchEvent) => {
+      const rect = getRect()
+      if (!rect || !isNearPinned(rect)) return
+      const goingDown = touchStartY - (e.touches[0]?.clientY ?? touchStartY) > 0
+      if (!canIntercept(goingDown)) return
+      if (tryExit(goingDown)) return
+      e.preventDefault()
+      maintainPin()
+    }
+    const onTouchEnd = (e: TouchEvent) => {
+      const deltaY = touchStartY - e.changedTouches[0].clientY
+      if (Math.abs(deltaY) < 40) return
+      const goingDown = deltaY > 0
+      const rect = getRect()
+      if (!rect || !isNearPinned(rect)) {
+        lockedRef.current = false
+        return
+      }
+      if (!canIntercept(goingDown)) return
+      if (tryExit(goingDown)) return
+      if (!lockedRef.current) {
+        lockedRef.current = true
+        goTo(goingDown ? 0 : last, { animate: false })
+        return
+      }
+      advanceStep(goingDown)
+    }
+
+    window.addEventListener('wheel', onWheel, { passive: false, capture: true })
+    window.addEventListener('touchstart', onTouchStart, { passive: true, capture: true })
+    window.addEventListener('touchmove', onTouchMove, { passive: false, capture: true })
+    window.addEventListener('touchend', onTouchEnd, { passive: true, capture: true })
 
     return () => {
-      window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
+      observer.disconnect()
+      window.removeEventListener('wheel', onWheel, { capture: true } as EventListenerOptions)
+      window.removeEventListener('touchstart', onTouchStart, { capture: true } as EventListenerOptions)
+      window.removeEventListener('touchmove', onTouchMove, { capture: true } as EventListenerOptions)
+      window.removeEventListener('touchend', onTouchEnd, { capture: true } as EventListenerOptions)
     }
   }, [])
 
   return (
-    <div
-      id="sl-how-it-works-scroll"
-      className="sl-how-it-works-scroll"
-      ref={scrollRef}
-      style={{
-        marginTop: '40px',
-        height: `${APP_STEPS.length * 100}vh`,
-        position: 'relative',
-      }}
-    >
     <section
       id="sl-how-it-works"
       className="sl-how-it-works sl-section"
       ref={sectionRef}
       style={{
+        marginTop: '40px',
         background: '#111',
         padding: `52px ${px} 0`,
-        position: 'sticky',
-        top: 0,
+        position: 'relative',
         overflow: 'hidden',
         height: '100vh',
         display: 'flex',
@@ -2160,7 +2238,7 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
               id={`sl-howitworks-tab-${s.id}`}
               className={`sl-howitworks-tab${active === i ? ' is-active' : ''}`}
               ref={el => { tabRefs.current[i] = el }}
-              onClick={() => scrollToStep(i)}
+              onClick={() => goTo(i)}
               style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', fontWeight: 600, letterSpacing: '0.02em', color: active === i ? '#fff' : 'rgba(255,255,255,0.3)', background: 'none', border: 'none', padding: '12px 28px 12px 0', cursor: 'pointer', transition: 'color 0.2s', textAlign: 'left', flexShrink: 0, whiteSpace: 'nowrap' }}
             >
               <span style={{ borderBottom: `2px solid ${active === i ? accentColor : 'transparent'}`, paddingBottom: '12px', transition: 'border-color 0.2s', display: 'flex', alignItems: 'baseline', gap: '6px' }}>
@@ -2216,7 +2294,6 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
         </div>
       )}
     </section>
-    </div>
   )
 }
 
@@ -2327,6 +2404,95 @@ function AppCarousel({ steps, px, isMobile }: { steps: AppStep[]; px: string; is
   )
 }
 
+const APP_STORE_URL = 'https://apps.apple.com/us/app/sideline-club/id6789336406'
+
+const FEED_LOADING_SECTIONS = ['Posts', 'Podcasts', 'Social', 'Videos'] as const
+
+function ClubFeedLoadingNotice({ clubName, accentColor, isMobile }: { clubName: string; accentColor: string; isMobile: boolean }) {
+  const [sectionIndex, setSectionIndex] = useState(0)
+
+  useEffect(() => {
+    setSectionIndex(0)
+  }, [clubName])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setSectionIndex((i) => (i + 1) % FEED_LOADING_SECTIONS.length)
+    }, 900)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  const section = FEED_LOADING_SECTIONS[sectionIndex]
+
+  return (
+    <div
+      id="sl-club-feed-loading"
+      className="sl-club-feed-loading"
+      role="status"
+      aria-live="polite"
+      aria-label={`Getting latest ${clubName} ${section.toLowerCase()}`}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 10,
+        display: 'flex',
+        alignItems: isMobile ? 'flex-start' : 'center',
+        justifyContent: 'center',
+        paddingTop: isMobile ? '20px' : 0,
+        background: 'rgba(255,255,255,0.86)',
+        backdropFilter: 'blur(3px)',
+      }}
+    >
+      <div className="sl-club-feed-loading-inner" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', padding: '24px', textAlign: 'center', position: isMobile ? 'sticky' : 'relative', top: isMobile ? '20px' : undefined }}>
+        <div
+          className="sl-club-feed-loading-spinner"
+          style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: '50%',
+            border: `2.5px solid ${accentColor}22`,
+            borderTopColor: accentColor,
+            animation: 'sl-feed-spin 0.8s linear infinite',
+          }}
+        />
+        <p className="sl-club-feed-loading-text" style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', fontWeight: 600, color: '#0a0a0a', margin: 0, letterSpacing: '0.01em' }}>
+          Getting latest {clubName} {section.toLowerCase()}…
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function AppStoreBadge({ id, className, height }: { id: string; className: string; height: number }) {
+  return (
+    <a
+      id={id}
+      className={className}
+      href={APP_STORE_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Download on the App Store"
+      style={{ display: 'inline-flex', lineHeight: 0 }}
+    >
+      <img src={appleStoreBadgeImg} alt="" style={{ height: `${height}px`, width: 'auto', objectFit: 'contain', display: 'block' }} />
+    </a>
+  )
+}
+
+function GooglePlayBadge({ id, className, height }: { id: string; className: string; height: number }) {
+  return (
+    <span
+      id={id}
+      className={className}
+      aria-label="Get it on Google Play (coming soon)"
+      aria-disabled="true"
+      style={{ display: 'inline-flex', lineHeight: 0, opacity: 0.45, cursor: 'default', pointerEvents: 'none' }}
+    >
+      <img src={googlePlayBadgeImg} alt="" style={{ height: `${height}px`, width: 'auto', objectFit: 'contain', display: 'block' }} />
+    </span>
+  )
+}
+
 function HomepageMockup() {
   const [feedClub, setFeedClub] = useState<Club>(CLUBS.find(c => c.id === 'ars')!)
   const [hoveredClub, setHoveredClub] = useState<string | null>(null)
@@ -2392,15 +2558,15 @@ function HomepageMockup() {
           </div>
           {isMobile ? (
             <div id="sl-masthead-downloads" className="sl-masthead-downloads sl-download-badges" style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-              <img id="sl-download-ios-masthead" className="sl-download-ios" src={appleStoreBadgeImg} alt="Download on the App Store" style={{ height: '28px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
-              <img id="sl-download-android-masthead" className="sl-download-android" src={googlePlayBadgeImg} alt="Get it on Google Play" style={{ height: '28px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
+              <AppStoreBadge id="sl-download-ios-masthead" className="sl-download-ios" height={28} />
+              <GooglePlayBadge id="sl-download-android-masthead" className="sl-download-android" height={28} />
             </div>
           ) : (
             <div id="sl-masthead-downloads" className="sl-masthead-downloads sl-download-badges" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', marginBottom: '14px', flexShrink: 0 }}>
               <span className="sl-download-label" style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#888' }}>Download for free now</span>
               <div className="sl-download-badge-row" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <img id="sl-download-ios-masthead" className="sl-download-ios" src={appleStoreBadgeImg} alt="Download on the App Store" style={{ height: '36px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
-                <img id="sl-download-android-masthead" className="sl-download-android" src={googlePlayBadgeImg} alt="Get it on Google Play" style={{ height: '36px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
+                <AppStoreBadge id="sl-download-ios-masthead" className="sl-download-ios" height={36} />
+                <GooglePlayBadge id="sl-download-android-masthead" className="sl-download-android" height={36} />
               </div>
             </div>
           )}
@@ -2432,8 +2598,8 @@ function HomepageMockup() {
             Stop chasing your Premier League club across the internet and take control of your fandom.
           </p>
           <div id="sl-hero-downloads" className="sl-hero-downloads sl-download-links" style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'nowrap' }}>
-            <span id="sl-download-ios-hero" className="sl-download-ios-link" style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 700, color: '#0a0a0a', letterSpacing: '0.04em', cursor: 'pointer', borderBottom: '1.5px solid #0a0a0a', paddingBottom: '1px', whiteSpace: 'nowrap' }}>Download for iOS →</span>
-            <span id="sl-download-android-hero" className="sl-download-android-link" style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 700, color: '#0a0a0a', letterSpacing: '0.04em', cursor: 'pointer', borderBottom: '1.5px solid #0a0a0a', paddingBottom: '1px', whiteSpace: 'nowrap' }}>Download for Android →</span>
+            <a id="sl-download-ios-hero" className="sl-download-ios-link" href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 700, color: '#0a0a0a', letterSpacing: '0.04em', cursor: 'pointer', borderBottom: '1.5px solid #0a0a0a', paddingBottom: '1px', whiteSpace: 'nowrap', textDecoration: 'none' }}>Download for iOS →</a>
+            <span id="sl-download-android-hero" className="sl-download-android-link" aria-disabled="true" style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 700, color: 'rgba(10,10,10,0.45)', letterSpacing: '0.04em', cursor: 'default', borderBottom: '1.5px solid rgba(10,10,10,0.25)', paddingBottom: '1px', whiteSpace: 'nowrap', pointerEvents: 'none' }}>Download for Android →</span>
             {!isMobile && <img id="sl-hero-qr" className="sl-hero-qr sl-download-qr" src={qrDarkImg} alt="Scan to download Sideline" style={{ width: '72px', height: '72px', objectFit: 'contain', display: 'block', flexShrink: 0 }} />}
           </div>
         </div>
@@ -2567,9 +2733,11 @@ function HomepageMockup() {
           </div>
         </div>
 
-        <>
+        <div id="sl-club-feed-wrap" className="sl-club-feed-wrap" style={{ position: 'relative' }}>
+              {feedLoading && <ClubFeedLoadingNotice clubName={feedClub.name} accentColor={feedClub.color} isMobile={isMobile} />}
+
               {/* ── Quadrant feed ── */}
-              <div id="sl-club-feed" className="sl-club-feed" data-club={feedClub.id} style={{ position: 'relative' }}>
+              <div id="sl-club-feed" className="sl-club-feed" data-club={feedClub.id} style={{ position: 'relative', width: '100%', minWidth: 0, overflow: isMobile ? 'hidden' : undefined }}>
 
                 {/* Articles label */}
                 <div id="sl-feed-articles" className="sl-feed-articles sl-feed-block">
@@ -2607,16 +2775,16 @@ function HomepageMockup() {
                 </div>
 
                 {/* Podcasts section */}
-                <div id="sl-feed-podcasts" className="sl-feed-podcasts sl-feed-block" style={{ marginTop: '28px', paddingBottom: '28px' }}>
+                <div id="sl-feed-podcasts" className="sl-feed-podcasts sl-feed-block" style={{ marginTop: '28px', paddingBottom: '28px', width: '100%', minWidth: 0, overflow: isMobile ? 'hidden' : undefined }}>
                   <div className="sl-feed-block-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
                     <span className="sl-feed-block-label" style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: feedClub.color, paddingRight: '8px', whiteSpace: 'nowrap' }}>Podcasts</span>
                     <div style={{ flex: 1, height: '1px', background: '#e0e0e0' }} />
                   </div>
-                  <div id="sl-feed-podcasts-grid" className="sl-feed-podcasts-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '10px' }}>
+                  <div id="sl-feed-podcasts-grid" className="sl-feed-podcasts-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))', gap: '10px', width: '100%', minWidth: 0 }}>
                     {podcastItems.map((p, i) => (
-                      <div key={i} id={`sl-feed-podcast-${i + 1}`} className="sl-feed-podcast-card" style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '12px', border: '1px solid #e8e8e8', borderRadius: '12px', background: '#f8f8f8' }}>
+                      <div key={i} id={`sl-feed-podcast-${i + 1}`} className="sl-feed-podcast-card" style={{ display: 'flex', gap: isMobile ? '10px' : '12px', alignItems: 'center', padding: isMobile ? '10px' : '12px', border: '1px solid #e8e8e8', borderRadius: '12px', background: '#f8f8f8', minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
                         {/* Artwork with play overlay */}
-                        <div style={{ position: 'relative', width: '64px', height: '64px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }}>
+                        <div style={{ position: 'relative', width: isMobile ? '56px' : '64px', height: isMobile ? '56px' : '64px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }}>
                           <img src={p.thumb} alt={p.show} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.32)' }} />
                           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -2629,13 +2797,13 @@ function HomepageMockup() {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 600, color: feedClub.color, display: 'block', marginBottom: '3px', letterSpacing: '0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.show}</span>
                           <h4 style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: '13px', color: '#0a0a0a', margin: '0 0 6px', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{p.title}</h4>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0, overflow: 'hidden' }}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                               <path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
                             </svg>
-                            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', color: '#bbb' }}>{p.duration}</span>
-                            <span style={{ color: '#ddd', fontSize: '10px' }}>·</span>
-                            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', color: '#bbb' }}>{p.date}</span>
+                            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', color: '#bbb', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.duration}</span>
+                            <span style={{ color: '#ddd', fontSize: '10px', flexShrink: 0 }}>·</span>
+                            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', color: '#bbb', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.date}</span>
                           </div>
                         </div>
                       </div>
@@ -2716,7 +2884,7 @@ function HomepageMockup() {
                   </div>
                 </div>
               </div>
-        </>
+        </div>
       </section>
 
 
@@ -2734,9 +2902,9 @@ function HomepageMockup() {
           <h2 id="sl-footer-cta-title" className="sl-footer-cta-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '32px' : '42px', color: '#fff', margin: 0, lineHeight: 1.05 }}>
             Your club is waiting.
           </h2>
-          <div id="sl-footer-downloads" className="sl-footer-downloads sl-download-badges" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: '28px', flexShrink: 0 }}>
-            <img id="sl-download-ios-footer" className="sl-download-ios" src={appleStoreBadgeImg} alt="Download on the App Store" style={{ height: '40px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
-            <img id="sl-download-android-footer" className="sl-download-android" src={googlePlayBadgeImg} alt="Get it on Google Play" style={{ height: '40px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
+          <div id="sl-footer-downloads" className="sl-footer-downloads sl-download-badges" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: isMobile ? '12px' : '28px', flexShrink: 0 }}>
+            <AppStoreBadge id="sl-download-ios-footer" className="sl-download-ios" height={40} />
+            <GooglePlayBadge id="sl-download-android-footer" className="sl-download-android" height={40} />
             {!isMobile && <img id="sl-footer-qr" className="sl-footer-qr sl-download-qr" src={qrWhiteImg} alt="Scan to download Sideline" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />}
           </div>
         </div>
