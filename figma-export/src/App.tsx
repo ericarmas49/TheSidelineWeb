@@ -2034,15 +2034,37 @@ const MATCH_PHASES = [
 function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: boolean; accentColor: string }) {
   const [active, setActive] = useState(0)
   const [textVisible, setTextVisible] = useState(true)
-  const sectionRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const sectionRef = useRef<HTMLElement>(null)
   const navRef = useRef<HTMLDivElement>(null)
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
   const activeRef = useRef(0)
-  const stepLockRef = useRef(false)
-  const exitedRef = useRef(false)
-  const isMobileRef = useRef(isMobile)
-  isMobileRef.current = isMobile
   const step = APP_STEPS[active]
+
+  const goTo = (i: number, { animate = true }: { animate?: boolean } = {}) => {
+    const next = Math.min(APP_STEPS.length - 1, Math.max(0, i))
+    if (next === activeRef.current) return
+    if (animate) {
+      setTextVisible(false)
+      setTimeout(() => {
+        setActive(next)
+        activeRef.current = next
+        setTextVisible(true)
+      }, 160)
+    } else {
+      setActive(next)
+      activeRef.current = next
+      setTextVisible(true)
+    }
+  }
+
+  const scrollToStep = (i: number) => {
+    const wrapper = scrollRef.current
+    if (!wrapper) return
+    const vh = window.innerHeight
+    const target = wrapper.offsetTop + i * vh
+    window.scrollTo({ top: target, behavior: 'smooth' })
+  }
 
   // Scroll active tab into view in the horizontal nav
   useEffect(() => {
@@ -2055,102 +2077,60 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
     nav.scrollTo({ left: tabLeft - navWidth / 2 + tabWidth / 2, behavior: 'smooth' })
   }, [active])
 
-  const goTo = (i: number) => {
-    if (i === activeRef.current) return
-    setTextVisible(false)
-    setTimeout(() => {
-      setActive(i)
-      activeRef.current = i
-      setTextVisible(true)
-    }, 160)
-  }
-
+  // Pin the panel while the user scrolls through each step (1 viewport height per step)
   useEffect(() => {
-    const SNAP_PX = 12 // how close to section top before we intercept
+    const wrapper = scrollRef.current
+    if (!wrapper) return
 
-    const advanceStep = (goingDown: boolean) => {
-      if (stepLockRef.current) return
-      const cur = activeRef.current
+    let ticking = false
+
+    const updateStepFromScroll = () => {
+      ticking = false
+      const maxScroll = Math.max(wrapper.offsetHeight - window.innerHeight, 0)
+      const relativeScroll = Math.min(Math.max(window.scrollY - wrapper.offsetTop, 0), maxScroll)
       const last = APP_STEPS.length - 1
-      if (goingDown && cur < last) {
-        stepLockRef.current = true
-        goTo(cur + 1)
-        setTimeout(() => { stepLockRef.current = false }, 700)
-      } else if (!goingDown && cur > 0) {
-        stepLockRef.current = true
-        goTo(cur - 1)
-        setTimeout(() => { stepLockRef.current = false }, 700)
-      } else if (goingDown && cur === last) {
-        // All steps seen scrolling down — release
-        exitedRef.current = true
-      } else if (!goingDown && cur === 0) {
-        // Back at start scrolling up — release
-        exitedRef.current = true
+      const vh = window.innerHeight || 1
+      const stepIndex = Math.min(last, Math.floor(relativeScroll / vh))
+      goTo(stepIndex, { animate: true })
+    }
+
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true
+        requestAnimationFrame(updateStepFromScroll)
       }
     }
 
-    const shouldIntercept = (): boolean => {
-      if (exitedRef.current) return false
-      const el = sectionRef.current
-      if (!el) return false
-      const rect = el.getBoundingClientRect()
-      // Intercept when section top is within SNAP_PX of the viewport top
-      return rect.top >= -SNAP_PX && rect.top <= SNAP_PX
-    }
-
-    const onWheel = (e: WheelEvent) => {
-      if (!shouldIntercept()) return
-      e.preventDefault()
-      e.stopImmediatePropagation()
-      // Snap precisely to section top
-      const rect = sectionRef.current!.getBoundingClientRect()
-      if (Math.abs(rect.top) > 2) {
-        window.scrollTo({ top: window.scrollY + rect.top })
-      }
-      advanceStep(e.deltaY > 0)
-    }
-
-    // Reset exitedRef when section fully leaves the viewport so re-entry works
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting) exitedRef.current = false
-    }, { threshold: 0 })
-    if (sectionRef.current) observer.observe(sectionRef.current)
-
-    let touchStartY = 0
-    const onTouchStart = (e: TouchEvent) => { touchStartY = e.touches[0].clientY }
-    const onTouchMove = (e: TouchEvent) => {
-      if (!shouldIntercept()) return
-      e.preventDefault()
-    }
-    const onTouchEnd = (e: TouchEvent) => {
-      if (!shouldIntercept()) return
-      const deltaY = touchStartY - e.changedTouches[0].clientY
-      if (Math.abs(deltaY) < 40) return
-      advanceStep(deltaY > 0)
-    }
-
-    window.addEventListener('wheel', onWheel, { passive: false, capture: true })
-    window.addEventListener('touchstart', onTouchStart, { passive: true, capture: true })
-    window.addEventListener('touchmove', onTouchMove, { passive: false, capture: true })
-    window.addEventListener('touchend', onTouchEnd, { passive: true, capture: true })
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll, { passive: true })
+    updateStepFromScroll()
 
     return () => {
-      observer.disconnect()
-      window.removeEventListener('wheel', onWheel, { capture: true } as EventListenerOptions)
-      window.removeEventListener('touchstart', onTouchStart, { capture: true } as EventListenerOptions)
-      window.removeEventListener('touchmove', onTouchMove, { capture: true } as EventListenerOptions)
-      window.removeEventListener('touchend', onTouchEnd, { capture: true } as EventListenerOptions)
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
     }
   }, [])
 
   return (
     <div
-      ref={sectionRef}
+      id="sl-how-it-works-scroll"
+      className="sl-how-it-works-scroll"
+      ref={scrollRef}
       style={{
         marginTop: '40px',
+        height: `${APP_STEPS.length * 100}vh`,
+        position: 'relative',
+      }}
+    >
+    <section
+      id="sl-how-it-works"
+      className="sl-how-it-works sl-section"
+      ref={sectionRef}
+      style={{
         background: '#111',
         padding: `52px ${px} 0`,
-        position: 'relative',
+        position: 'sticky',
+        top: 0,
         overflow: 'hidden',
         height: '100vh',
         display: 'flex',
@@ -2161,22 +2141,26 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
       <div style={{ position: 'absolute', top: '-80px', right: '-120px', width: '500px', height: '500px', borderRadius: '50%', background: `radial-gradient(circle, ${accentColor}18 0%, transparent 70%)`, pointerEvents: 'none', transition: 'background 0.6s ease' }} />
 
       {/* Eyebrow */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0', flexShrink: 0 }}>
-        <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', whiteSpace: 'nowrap' }}>How It Works</span>
+      <div className="sl-section-eyebrow-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0', flexShrink: 0 }}>
+        <span id="sl-how-it-works-eyebrow" className="sl-section-eyebrow" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', whiteSpace: 'nowrap' }}>How It Works</span>
         <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
       </div>
 
       {/* Horizontal scrolling nav — same on mobile and desktop, auto-scrolls to active */}
       <div
+        id="sl-how-it-works-nav"
+        className="sl-how-it-works-nav"
         ref={navRef}
         style={{ margin: '8px 0 0', flexShrink: 0, overflowX: 'auto', scrollbarWidth: 'none', borderBottom: '1px solid rgba(255,255,255,0.1)' }}
       >
-        <div style={{ display: 'flex', gap: '0', minWidth: 'max-content' }}>
+        <div className="sl-how-it-works-nav-list" style={{ display: 'flex', gap: '0', minWidth: 'max-content' }}>
           {APP_STEPS.map((s, i) => (
             <button
               key={s.id}
+              id={`sl-howitworks-tab-${s.id}`}
+              className={`sl-howitworks-tab${active === i ? ' is-active' : ''}`}
               ref={el => { tabRefs.current[i] = el }}
-              onClick={() => goTo(i)}
+              onClick={() => scrollToStep(i)}
               style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', fontWeight: 600, letterSpacing: '0.02em', color: active === i ? '#fff' : 'rgba(255,255,255,0.3)', background: 'none', border: 'none', padding: '12px 28px 12px 0', cursor: 'pointer', transition: 'color 0.2s', textAlign: 'left', flexShrink: 0, whiteSpace: 'nowrap' }}
             >
               <span style={{ borderBottom: `2px solid ${active === i ? accentColor : 'transparent'}`, paddingBottom: '12px', transition: 'border-color 0.2s', display: 'flex', alignItems: 'baseline', gap: '6px' }}>
@@ -2189,16 +2173,19 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
       </div>
 
       {/* Content — desktop: side by side; mobile: phone on top, text below */}
+      <div id="sl-how-it-works-panel" className="sl-how-it-works-panel" data-step={step.id} style={{ flex: 1, display: 'contents' }}>
       {isMobile ? (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <div className="sl-how-it-works-mobile" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {/* Text — top, centered */}
-          <div style={{ flexShrink: 0, padding: '32px 0 8px', textAlign: 'center', opacity: textVisible ? 1 : 0, transform: textVisible ? 'translateY(8%)' : 'translateY(calc(8% + 12px))', transition: 'opacity 0.2s ease, transform 0.2s ease' }}>
-            <h2 style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: '32px', color: '#fff', margin: '0 0 10px', lineHeight: 1.05, letterSpacing: '-0.5px' }}>{step.headline}</h2>
-            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '14px', color: 'rgba(255,255,255,0.55)', margin: 0, lineHeight: 1.7 }}>{step.body}</p>
+          <div id="sl-howitworks-content" className="sl-howitworks-content" style={{ flexShrink: 0, padding: '32px 0 8px', textAlign: 'center', opacity: textVisible ? 1 : 0, transform: textVisible ? 'translateY(8%)' : 'translateY(calc(8% + 12px))', transition: 'opacity 0.2s ease, transform 0.2s ease' }}>
+            <h2 id="sl-howitworks-title" className="sl-howitworks-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: '32px', color: '#fff', margin: '0 0 10px', lineHeight: 1.05, letterSpacing: '-0.5px' }}>{step.headline}</h2>
+            <p id="sl-howitworks-body" className="sl-howitworks-body" style={{ fontFamily: "'Inter', sans-serif", fontSize: '14px', color: 'rgba(255,255,255,0.55)', margin: 0, lineHeight: 1.7 }}>{step.body}</p>
           </div>
           {/* Phone — bottom, flush to edge, as large as possible */}
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', overflow: 'hidden', opacity: textVisible ? 1 : 0, transition: 'opacity 0.2s ease' }}>
+          <div className="sl-howitworks-media" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', overflow: 'hidden', opacity: textVisible ? 1 : 0, transition: 'opacity 0.2s ease' }}>
             <img
+              id="sl-howitworks-phone"
+              className="sl-howitworks-phone"
               src={step.img}
               alt={step.label}
               style={{ height: 'min(750px, 55vh)', width: 'auto', maxWidth: '100%', objectFit: 'contain', objectPosition: 'bottom', display: 'block' }}
@@ -2206,27 +2193,29 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
           </div>
         </div>
       ) : (
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '80px', alignItems: 'center', minHeight: 0 }}>
+        <div className="sl-how-it-works-desktop" style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '80px', alignItems: 'center', minHeight: 0 }}>
           {/* Left — text */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', paddingLeft: '24px', opacity: textVisible ? 1 : 0, transform: textVisible ? 'translateY(-12%)' : 'translateY(calc(-12% + 12px))', transition: 'opacity 0.2s ease, transform 0.2s ease' }}>
-            <h2 style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: '54px', color: '#fff', margin: '0 0 24px', lineHeight: 1.05, whiteSpace: 'pre-line', letterSpacing: '-0.5px' }}>{step.headline}</h2>
-            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '15px', color: 'rgba(255,255,255,0.55)', margin: 0, lineHeight: 1.8, maxWidth: '380px' }}>{step.body}</p>
+          <div id="sl-howitworks-content" className="sl-howitworks-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', paddingLeft: '24px', opacity: textVisible ? 1 : 0, transform: textVisible ? 'translateY(-12%)' : 'translateY(calc(-12% + 12px))', transition: 'opacity 0.2s ease, transform 0.2s ease' }}>
+            <h2 id="sl-howitworks-title" className="sl-howitworks-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: '54px', color: '#fff', margin: '0 0 24px', lineHeight: 1.05, whiteSpace: 'pre-line', letterSpacing: '-0.5px' }}>{step.headline}</h2>
+            <p id="sl-howitworks-body" className="sl-howitworks-body" style={{ fontFamily: "'Inter', sans-serif", fontSize: '15px', color: 'rgba(255,255,255,0.55)', margin: 0, lineHeight: 1.8, maxWidth: '380px' }}>{step.body}</p>
           </div>
           {/* Phone mockup — centered */}
-          <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
-            <img src={step.img} alt={step.label} style={{ maxHeight: 'min(70vh, 560px)', maxWidth: '100%', width: 'auto', objectFit: 'contain', display: 'block' }} />
+          <div className="sl-howitworks-media" style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
+            <img id="sl-howitworks-phone" className="sl-howitworks-phone" src={step.img} alt={step.label} style={{ maxHeight: 'min(70vh, 560px)', maxWidth: '100%', width: 'auto', objectFit: 'contain', display: 'block' }} />
           </div>
         </div>
       )}
+      </div>
 
       {/* Progress dots — desktop only */}
       {!isMobile && (
-        <div style={{ position: 'absolute', right: px, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {APP_STEPS.map((_, i) => (
-            <div key={i} style={{ width: '6px', height: '6px', borderRadius: '50%', background: i === active ? '#fff' : 'rgba(255,255,255,0.2)', transition: 'background 0.3s' }} />
+        <div id="sl-howitworks-dots" className="sl-howitworks-dots" style={{ position: 'absolute', right: px, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {APP_STEPS.map((s, i) => (
+            <div key={i} id={`sl-howitworks-dot-${s.id}`} className={`sl-howitworks-dot${i === active ? ' is-active' : ''}`} style={{ width: '6px', height: '6px', borderRadius: '50%', background: i === active ? '#fff' : 'rgba(255,255,255,0.2)', transition: 'background 0.3s' }} />
           ))}
         </div>
       )}
+    </section>
     </div>
   )
 }
@@ -2234,19 +2223,19 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
 function MatchDaySection({ px, isMobile }: { px: string; isMobile: boolean }) {
   const doubleRule = <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}><div style={{ height: '2px', background: '#0a0a0a' }} /><div style={{ height: '1px', background: '#0a0a0a' }} /></div>
   return (
-    <div style={{ padding: `32px ${px} 0` }}>
-      <div style={{ padding: '0', marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#888' }}>From One Match to the next</span>
+    <section id="sl-matchday" className="sl-matchday sl-section" style={{ padding: `32px ${px} 0` }}>
+      <div className="sl-section-eyebrow-row" style={{ padding: '0', marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span id="sl-matchday-eyebrow" className="sl-section-eyebrow" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#888' }}>From One Match to the next</span>
       </div>
-      <h2 style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '28px' : '42px', color: '#0a0a0a', margin: '0 0 32px', lineHeight: 1.1, letterSpacing: '-0.4px' }}>
+      <h2 id="sl-matchday-title" className="sl-section-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '28px' : '42px', color: '#0a0a0a', margin: '0 0 32px', lineHeight: 1.1, letterSpacing: '-0.4px' }}>
         Your daily club companion.
       </h2>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '0' }}>
+      <div id="sl-matchday-grid" className="sl-matchday-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '0' }}>
         {MATCH_PHASES.map((f, i) => {
           const borderRight = !isMobile && i % 2 === 0 ? '1px solid #e0e0e0' : 'none'
           const borderTop = isMobile ? (i > 0 ? '1px solid #e0e0e0' : 'none') : (i >= 2 ? '1px solid #e0e0e0' : 'none')
           return (
-            <div key={i} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '24px', borderRight, borderTop, paddingTop: '24px', paddingBottom: '24px', paddingLeft: isMobile ? '0' : (i % 2 === 1 ? '40px' : '0'), paddingRight: isMobile ? '0' : '40px' }}>
+            <div key={i} id={`sl-matchday-${f.id}`} className="sl-matchday-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '24px', borderRight, borderTop, paddingTop: '24px', paddingBottom: '24px', paddingLeft: isMobile ? '0' : (i % 2 === 1 ? '40px' : '0'), paddingRight: isMobile ? '0' : '40px' }}>
               <div style={{ flex: 1, minWidth: 0, maxWidth: '360px' }}>
                 <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.14em', color: '#bbb', marginBottom: '16px' }}>{f.n}</div>
                 <h3 style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '18px' : '20px', color: '#0a0a0a', margin: '0 0 10px', lineHeight: 1.25 }}>{f.title}</h3>
@@ -2259,7 +2248,7 @@ function MatchDaySection({ px, isMobile }: { px: string; isMobile: boolean }) {
           )
         })}
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -2378,52 +2367,52 @@ function HomepageMockup() {
   )
 
   return (
-    <div style={{ background: '#fff', overflowX: 'hidden' }}>
+    <div id="sl-homepage" className="sl-homepage sl-page" style={{ background: '#fff', overflowX: 'hidden' }}>
 
       {/* ── Top band ── */}
-      <div style={{ background: '#0a0a0a', padding: `14px ${px}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#fff' }}>
+      <div id="sl-top-band" className="sl-top-band" style={{ background: '#0a0a0a', padding: `14px ${px}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span id="sl-top-band-label" className="sl-top-band-label" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#fff' }}>
           Sideline · Premier League Edition
         </span>
         {!isMobile && (
-          <div style={{ display: 'flex', gap: '24px' }}>
+          <nav id="sl-top-nav" className="sl-top-nav" aria-label="Top navigation" style={{ display: 'flex', gap: '24px' }}>
             {['Product', 'Clubs', 'Newsletter', 'About'].map(l => (
-              <span key={l} style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}>{l}</span>
+              <span key={l} id={`sl-top-nav-${l.toLowerCase()}`} className="sl-top-nav-link" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}>{l}</span>
             ))}
-          </div>
+          </nav>
         )}
       </div>
 
       {/* ── Masthead ── */}
-      <div style={{ padding: `20px ${px} 0` }}>
+      <header id="sl-masthead" className="sl-masthead sl-header" style={{ padding: `20px ${px} 0` }}>
         {rule2()}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '10px 0 8px' }}>
-          <div style={{ fontFamily: "'Figtree', sans-serif", fontWeight: 900, fontSize: isMobile ? '44px' : '80px', lineHeight: 1, letterSpacing: isMobile ? '-1.5px' : '-3px', color: '#0a0a0a', userSelect: 'none', paddingLeft: '5px', paddingRight: '15px' }}>
+        <div className="sl-masthead-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '10px 0 8px' }}>
+          <div id="sl-brand-wordmark" className="sl-brand-wordmark" style={{ fontFamily: "'Figtree', sans-serif", fontWeight: 900, fontSize: isMobile ? '44px' : '80px', lineHeight: 1, letterSpacing: isMobile ? '-1.5px' : '-3px', color: '#0a0a0a', userSelect: 'none', paddingLeft: '5px', paddingRight: '15px' }}>
             Sideline
           </div>
           {isMobile ? (
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-              <img src={appleStoreBadgeImg} alt="Download on the App Store" style={{ height: '28px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
-              <img src={googlePlayBadgeImg} alt="Get it on Google Play" style={{ height: '28px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
+            <div id="sl-masthead-downloads" className="sl-masthead-downloads sl-download-badges" style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+              <img id="sl-download-ios-masthead" className="sl-download-ios" src={appleStoreBadgeImg} alt="Download on the App Store" style={{ height: '28px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
+              <img id="sl-download-android-masthead" className="sl-download-android" src={googlePlayBadgeImg} alt="Get it on Google Play" style={{ height: '28px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', marginBottom: '14px', flexShrink: 0 }}>
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#888' }}>Download for free now</span>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <img src={appleStoreBadgeImg} alt="Download on the App Store" style={{ height: '36px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
-                <img src={googlePlayBadgeImg} alt="Get it on Google Play" style={{ height: '36px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
+            <div id="sl-masthead-downloads" className="sl-masthead-downloads sl-download-badges" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', marginBottom: '14px', flexShrink: 0 }}>
+              <span className="sl-download-label" style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#888' }}>Download for free now</span>
+              <div className="sl-download-badge-row" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <img id="sl-download-ios-masthead" className="sl-download-ios" src={appleStoreBadgeImg} alt="Download on the App Store" style={{ height: '36px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
+                <img id="sl-download-android-masthead" className="sl-download-android" src={googlePlayBadgeImg} alt="Get it on Google Play" style={{ height: '36px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
               </div>
             </div>
           )}
         </div>
         {rule2()}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 0' }}>
-          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#0a0a0a' }}>Your Club. all in one place.</span>
+        <div className="sl-masthead-tagline-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 0' }}>
+          <span id="sl-masthead-tagline" className="sl-masthead-tagline" style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#0a0a0a' }}>Your Club. all in one place.</span>
         </div>
-      </div>
+      </header>
 
       {/* ── Hero: 35/65 on wide screens, stacked otherwise ── */}
-      <div style={{
+      <section id="sl-hero" className="sl-hero sl-section" style={{
         margin: `20px ${px} 0`,
         display: 'grid',
         gridTemplateColumns: isWide ? '40fr 60fr' : '1fr',
@@ -2431,26 +2420,26 @@ function HomepageMockup() {
         minHeight: isWide ? '460px' : undefined,
       }}>
         {/* Text: left on wide, below video otherwise */}
-        <div style={{
+        <div id="sl-hero-content" className="sl-hero-content" style={{
           order: isWide ? 1 : 2,
           display: 'flex', flexDirection: 'column', justifyContent: 'center',
           padding: isMobile ? '28px 0 8px' : isWide ? '48px 120px 48px 0' : '36px 0 8px',
         }}>
-          <h1 style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '32px' : '44px', lineHeight: 1.1, color: '#0a0a0a', margin: '0 0 20px', letterSpacing: '-0.5px' }}>
+          <h1 id="sl-hero-title" className="sl-hero-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '32px' : '44px', lineHeight: 1.1, color: '#0a0a0a', margin: '0 0 20px', letterSpacing: '-0.5px' }}>
             Everything about your club in one place.
           </h1>
-          <p style={{ fontFamily: "'Inter', sans-serif", fontSize: isMobile ? '14px' : '16px', lineHeight: 1.7, color: '#444', margin: '0 0 28px' }}>
+          <p id="sl-hero-body" className="sl-hero-body" style={{ fontFamily: "'Inter', sans-serif", fontSize: isMobile ? '14px' : '16px', lineHeight: 1.7, color: '#444', margin: '0 0 28px' }}>
             Stop chasing your Premier League club across the internet and take control of your fandom.
           </p>
-          <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'nowrap' }}>
-            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 700, color: '#0a0a0a', letterSpacing: '0.04em', cursor: 'pointer', borderBottom: '1.5px solid #0a0a0a', paddingBottom: '1px', whiteSpace: 'nowrap' }}>Download for iOS →</span>
-            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 700, color: '#0a0a0a', letterSpacing: '0.04em', cursor: 'pointer', borderBottom: '1.5px solid #0a0a0a', paddingBottom: '1px', whiteSpace: 'nowrap' }}>Download for Android →</span>
-            {!isMobile && <img src={qrDarkImg} alt="Scan to download Sideline" style={{ width: '72px', height: '72px', objectFit: 'contain', display: 'block', flexShrink: 0 }} />}
+          <div id="sl-hero-downloads" className="sl-hero-downloads sl-download-links" style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'nowrap' }}>
+            <span id="sl-download-ios-hero" className="sl-download-ios-link" style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 700, color: '#0a0a0a', letterSpacing: '0.04em', cursor: 'pointer', borderBottom: '1.5px solid #0a0a0a', paddingBottom: '1px', whiteSpace: 'nowrap' }}>Download for iOS →</span>
+            <span id="sl-download-android-hero" className="sl-download-android-link" style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 700, color: '#0a0a0a', letterSpacing: '0.04em', cursor: 'pointer', borderBottom: '1.5px solid #0a0a0a', paddingBottom: '1px', whiteSpace: 'nowrap' }}>Download for Android →</span>
+            {!isMobile && <img id="sl-hero-qr" className="sl-hero-qr sl-download-qr" src={qrDarkImg} alt="Scan to download Sideline" style={{ width: '72px', height: '72px', objectFit: 'contain', display: 'block', flexShrink: 0 }} />}
           </div>
         </div>
 
         {/* Video: right on wide, top otherwise */}
-        <div style={{
+        <div id="sl-hero-media" className="sl-hero-media" style={{
           order: isWide ? 2 : 1,
           position: 'relative', overflow: 'hidden',
           aspectRatio: isMobile ? '4/3' : isWide ? undefined : '16/7',
@@ -2458,17 +2447,21 @@ function HomepageMockup() {
           background: '#000',
         }}>
           <video
+            id="sl-hero-video"
+            className="sl-hero-video"
             ref={(el) => { if (el) { el.src = heroVideoSrc; el.load(); el.play().catch(() => {}); } }}
             autoPlay loop muted playsInline preload="auto"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7 }}
           />
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.05) 50%, rgba(0,0,0,0.35) 100%)' }} />
+          <div className="sl-hero-video-overlay" style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.05) 50%, rgba(0,0,0,0.35) 100%)' }} />
           <img
+            id="sl-hero-phone"
+            className="sl-hero-phone"
             src={appScreenshotPng}
             alt="Sideline app screens"
             style={{ position: 'absolute', right: '24px', bottom: '32px', maxHeight: 'calc(100% - 32px)', width: 'auto', display: 'block' }}
           />
-          <a href="https://sideline.app/download" target="_blank" rel="noopener noreferrer" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#000', padding: '9px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', cursor: 'pointer' }}>
+          <a id="sl-hero-download-bar" className="sl-hero-download-bar" href="https://sideline.app/download" target="_blank" rel="noopener noreferrer" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#000', padding: '9px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', cursor: 'pointer' }}>
             <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#fff' }}>
               Download FOR FREE now
             </span>
@@ -2478,18 +2471,18 @@ function HomepageMockup() {
             </svg>
           </a>
         </div>
-      </div>
+      </section>
 
       {/* ── Why Sideline ── */}
-      <div style={{ padding: `28px ${px} 48px` }}>
+      <section id="sl-why" className="sl-why sl-section" style={{ padding: `28px ${px} 48px` }}>
         {rule2()}
-        <div style={{ padding: '10px 0 0', marginBottom: '16px' }}>
-          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#888' }}>Why Sideline</span>
+        <div className="sl-section-eyebrow-row" style={{ padding: '10px 0 0', marginBottom: '16px' }}>
+          <span id="sl-why-eyebrow" className="sl-section-eyebrow" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#888' }}>Why Sideline</span>
         </div>
-        <h2 style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '28px' : '42px', color: '#0a0a0a', margin: '0 0 32px', lineHeight: 1.1, letterSpacing: '-0.4px' }}>
+        <h2 id="sl-why-title" className="sl-section-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '28px' : '42px', color: '#0a0a0a', margin: '0 0 32px', lineHeight: 1.1, letterSpacing: '-0.4px' }}>
           Following your club shouldn't feel like work.
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '0' }}>
+        <div id="sl-why-grid" className="sl-why-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '0' }}>
           {[
             { title: 'Built around your club.', body: 'Put your club at the center because being a fan should always start with the team you love.', n: '01', img: whyImg1 },
             { title: 'All your coverage together.', body: 'Get your articles, podcasts, videos, social and stats in one place—without ever leaving the app.', n: '02', img: whyImg2 },
@@ -2498,7 +2491,7 @@ function HomepageMockup() {
             { title: 'New voices to discover.', body: 'Step outside your usual routine with fresh takes from 600+ trusted sources you might otherwise miss.', n: '05', img: whyImg5 },
             { title: 'Connected through your club.', body: "Soon, you'll be able to share your perspective and interact with fellow supporters—both online and in person.", n: '06', img: whyImg6 },
           ].map((f, i) => (
-            <div key={i} style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', borderRight: !isMobile && i % 3 !== 2 ? '1px solid #e0e0e0' : 'none', borderTop: (isMobile ? i > 0 : i >= 3) ? '1px solid #e0e0e0' : 'none', paddingTop: '16px', paddingBottom: '16px', paddingLeft: isMobile ? '0' : (i % 3 === 0 ? '0' : '28px'), paddingRight: '16px', gap: '12px' }}>
+            <div key={i} id={`sl-why-card-${f.n}`} className="sl-why-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', borderRight: !isMobile && i % 3 !== 2 ? '1px solid #e0e0e0' : 'none', borderTop: (isMobile ? i > 0 : i >= 3) ? '1px solid #e0e0e0' : 'none', paddingTop: '16px', paddingBottom: '16px', paddingLeft: isMobile ? '0' : (i % 3 === 0 ? '0' : '28px'), paddingRight: '16px', gap: '12px' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.14em', color: '#bbb', marginBottom: '14px' }}>{f.n}</div>
                 <h3 style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: '16px', color: '#0a0a0a', margin: '0 0 10px', lineHeight: 1.25 }}>{f.title}</h3>
@@ -2510,30 +2503,32 @@ function HomepageMockup() {
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
       {/* ── From the Feed ── */}
-      <div style={{ padding: `0 ${px} 0` }}>
+      <section id="sl-club-hub" className="sl-club-hub sl-section" style={{ padding: `0 ${px} 0` }}>
         {rule2()}
-        <div style={{ padding: '10px 0 0', marginBottom: '8px' }}>
-          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#888' }}>Choose Your Club</span>
+        <div className="sl-section-eyebrow-row" style={{ padding: '10px 0 0', marginBottom: '8px' }}>
+          <span id="sl-club-hub-eyebrow" className="sl-section-eyebrow" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#888' }}>Choose Your Club</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
-          <h2 style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '28px' : '38px', color: '#0a0a0a', margin: 0, lineHeight: 1.15, letterSpacing: '-0.3px' }}>
+        <div className="sl-section-heading-row" style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
+          <h2 id="sl-club-hub-title" className="sl-section-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '28px' : '38px', color: '#0a0a0a', margin: 0, lineHeight: 1.15, letterSpacing: '-0.3px' }}>
             Pick your club. See what's happening.
           </h2>
         </div>
 
         {/* Club selector */}
-        <div style={{ position: 'relative', marginBottom: '32px' }}>
-          <div ref={clubScrollRef} style={{ overflowX: 'auto', overflowY: 'visible', scrollbarWidth: 'none' }}>
-            <div style={{ display: 'flex', gap: '12px', paddingBottom: '6px', paddingTop: '6px', paddingRight: '80px', alignItems: 'center' }}>
+        <div id="sl-club-picker" className="sl-club-picker" style={{ position: 'relative', marginBottom: '32px' }}>
+          <div id="sl-club-picker-scroll" className="sl-club-picker-scroll" ref={clubScrollRef} style={{ overflowX: 'auto', overflowY: 'visible', scrollbarWidth: 'none' }}>
+            <div id="sl-club-picker-list" className="sl-club-picker-list" style={{ display: 'flex', gap: '12px', paddingBottom: '6px', paddingTop: '6px', paddingRight: '80px', alignItems: 'center' }}>
               {CLUBS.map(cl => {
                 const active = cl.id === feedClub.id
                 const hovered = hoveredClub === cl.id
                 return (
                   <button
                     key={cl.id}
+                    id={`sl-club-btn-${cl.id}`}
+                    className={`sl-club-btn${active ? ' is-active' : ''}`}
                     onClick={() => setFeedClub(cl)}
                     onMouseEnter={() => setHoveredClub(cl.id)}
                     onMouseLeave={() => setHoveredClub(null)}
@@ -2547,40 +2542,54 @@ function HomepageMockup() {
                       transition: 'all 0.15s',
                     }}
                   >
-                    <img src={cl.logo} alt={cl.name} style={{ width: '18px', height: '18px', objectFit: 'contain', filter: active ? 'brightness(0) invert(1)' : 'none', transition: 'filter 0.15s', flexShrink: 0 }} />
+                    <img
+                      src={cl.logo}
+                      alt={cl.name}
+                      className="sl-club-btn-logo"
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        objectFit: 'contain',
+                        flexShrink: 0,
+                        background: active ? 'rgba(255,255,255,0.95)' : 'transparent',
+                        borderRadius: '50%',
+                        padding: active ? '1px' : 0,
+                      }}
+                    />
                     <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', fontWeight: 600, color: active ? cl.onColor : hovered ? cl.color : '#444', whiteSpace: 'nowrap', letterSpacing: '0.01em', transition: 'color 0.15s' }}>{cl.name}</span>
                   </button>
                 )
               })}
             </div>
           </div>
-          <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '90px', background: 'linear-gradient(to right, transparent, #fff 55%)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-            <span onClick={() => clubScrollRef.current?.scrollBy({ left: 160, behavior: 'smooth' })} style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#666', letterSpacing: '0.04em', paddingRight: '4px', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }}>more →</span>
+          <div className="sl-club-picker-fade" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '90px', background: 'linear-gradient(to right, transparent, #fff 55%)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+            <span id="sl-club-picker-more" className="sl-club-picker-more" onClick={() => clubScrollRef.current?.scrollBy({ left: 160, behavior: 'smooth' })} style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#666', letterSpacing: '0.04em', paddingRight: '4px', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }}>more →</span>
           </div>
         </div>
 
         <>
               {/* ── Quadrant feed ── */}
-              <div style={{ position: 'relative' }}>
+              <div id="sl-club-feed" className="sl-club-feed" data-club={feedClub.id} style={{ position: 'relative' }}>
 
                 {/* Articles label */}
-                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
-                  <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: feedClub.color, paddingRight: '8px' }}>Articles</span>
+                <div id="sl-feed-articles" className="sl-feed-articles sl-feed-block">
+                <div className="sl-feed-block-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+                  <span className="sl-feed-block-label" style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: feedClub.color, paddingRight: '8px' }}>Articles</span>
                   <div style={{ flex: 1, height: '1px', background: '#e0e0e0' }} />
                 </div>
 
                 {/* Top row: lead + secondary */}
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '20px' : '32px', position: 'relative', zIndex: 1, alignItems: 'stretch' }}>
-                  <div style={{ paddingBottom: '28px' }}>
+                <div className="sl-feed-articles-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '20px' : '32px', position: 'relative', zIndex: 1, alignItems: 'stretch' }}>
+                  <div id="sl-feed-article-lead" className="sl-feed-article-lead" style={{ paddingBottom: '28px' }}>
                     <div style={{ width: '100%', aspectRatio: '3/2', overflow: 'hidden', marginBottom: '14px' }}>
                       <img src={articleFeed.lead.img} alt={feedClub.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     </div>
                     <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: feedClub.color, display: 'block', marginBottom: '8px' }}>{articleFeed.lead.source}</span>
-                    <h3 style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '18px' : '20px', color: '#0a0a0a', margin: 0, lineHeight: 1.2 }}>{articleFeed.lead.headline}</h3>
+                    <h3 className="sl-feed-article-headline" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '18px' : '20px', color: '#0a0a0a', margin: 0, lineHeight: 1.2 }}>{articleFeed.lead.headline}</h3>
                   </div>
-                  <div style={{ paddingBottom: '28px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1 }}>
+                  <div id="sl-feed-articles-list" className="sl-feed-articles-list" style={{ paddingBottom: '28px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1 }}>
                     {articleFeed.secondary.map((s, i, arr) => (
-                      <div key={i} style={{ paddingBottom: i < arr.length - 1 ? '16px' : '0', marginBottom: i < arr.length - 1 ? '16px' : '0', display: 'flex', gap: '12px', alignItems: 'flex-start', flex: 1 }}>
+                      <div key={i} id={`sl-feed-article-${i + 1}`} className="sl-feed-article-item" style={{ paddingBottom: i < arr.length - 1 ? '16px' : '0', marginBottom: i < arr.length - 1 ? '16px' : '0', display: 'flex', gap: '12px', alignItems: 'flex-start', flex: 1 }}>
                         {s.img && (
                           <div style={{ flexShrink: 0, width: '72px', height: '54px', overflow: 'hidden', borderRadius: '3px' }}>
                             <img src={s.img} alt={s.headline} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -2595,16 +2604,17 @@ function HomepageMockup() {
                     ))}
                   </div>
                 </div>
+                </div>
 
                 {/* Podcasts section */}
-                <div style={{ marginTop: '28px', paddingBottom: '28px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
-                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: feedClub.color, paddingRight: '8px', whiteSpace: 'nowrap' }}>Podcasts</span>
+                <div id="sl-feed-podcasts" className="sl-feed-podcasts sl-feed-block" style={{ marginTop: '28px', paddingBottom: '28px' }}>
+                  <div className="sl-feed-block-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+                    <span className="sl-feed-block-label" style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: feedClub.color, paddingRight: '8px', whiteSpace: 'nowrap' }}>Podcasts</span>
                     <div style={{ flex: 1, height: '1px', background: '#e0e0e0' }} />
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '10px' }}>
+                  <div id="sl-feed-podcasts-grid" className="sl-feed-podcasts-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '10px' }}>
                     {podcastItems.map((p, i) => (
-                      <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '12px', border: '1px solid #e8e8e8', borderRadius: '12px', background: '#f8f8f8' }}>
+                      <div key={i} id={`sl-feed-podcast-${i + 1}`} className="sl-feed-podcast-card" style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '12px', border: '1px solid #e8e8e8', borderRadius: '12px', background: '#f8f8f8' }}>
                         {/* Artwork with play overlay */}
                         <div style={{ position: 'relative', width: '64px', height: '64px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }}>
                           <img src={p.thumb} alt={p.show} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -2634,16 +2644,18 @@ function HomepageMockup() {
                 </div>
 
                 {/* Social section */}
-                <div style={{ marginTop: '28px', paddingBottom: '28px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
-                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: feedClub.color, paddingRight: '8px', whiteSpace: 'nowrap' }}>Social</span>
+                <div id="sl-feed-social" className="sl-feed-social sl-feed-block" style={{ marginTop: '28px', paddingBottom: '28px' }}>
+                  <div className="sl-feed-block-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+                    <span className="sl-feed-block-label" style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: feedClub.color, paddingRight: '8px', whiteSpace: 'nowrap' }}>Social</span>
                     <div style={{ flex: 1, height: '1px', background: '#e0e0e0' }} />
                   </div>
-                  <div style={{ overflowX: 'auto', scrollbarWidth: 'none', marginLeft: '-4px', paddingLeft: '4px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'row', gap: '12px', paddingBottom: '4px', width: 'max-content' }}>
+                  <div id="sl-feed-social-scroll" className="sl-feed-social-scroll" style={{ overflowX: 'auto', scrollbarWidth: 'none', marginLeft: '-4px', paddingLeft: '4px' }}>
+                    <div id="sl-feed-social-list" className="sl-feed-social-list" style={{ display: 'flex', flexDirection: 'row', gap: '12px', paddingBottom: '4px', width: 'max-content' }}>
                       {liveSocial.length ? liveSocial.map((tweet) => (
                         <a
                           key={tweet.id}
+                          id={`sl-feed-social-${tweet.id}`}
+                          className="sl-feed-social-card"
                           href={tweet.tweetUrl}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -2665,15 +2677,15 @@ function HomepageMockup() {
               </div>
 
               {/* ── Video — horizontal side-scroll ── */}
-              <div style={{ marginTop: '28px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                  <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: feedClub.color }}>Video</span>
+              <div id="sl-feed-videos" className="sl-feed-videos sl-feed-block" style={{ marginTop: '28px' }}>
+                <div className="sl-feed-block-header" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                  <span className="sl-feed-block-label" style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: feedClub.color }}>Video</span>
                   <div style={{ flex: 1, height: '1px', background: '#e0e0e0' }} />
                 </div>
-                <div style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
-                  <div style={{ display: 'flex', gap: '16px', paddingBottom: '4px' }}>
+                <div id="sl-feed-videos-scroll" className="sl-feed-videos-scroll" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
+                  <div id="sl-feed-videos-list" className="sl-feed-videos-list" style={{ display: 'flex', gap: '16px', paddingBottom: '4px' }}>
                     {videoItems.map((v, i) => (
-                      <div key={i} style={{ flexShrink: 0, width: '220px' }}>
+                      <div key={i} id={`sl-feed-video-${i + 1}`} className="sl-feed-video-card" style={{ flexShrink: 0, width: '220px' }}>
                         {/* Thumbnail */}
                         <div style={{ width: '220px', aspectRatio: '16/9', background: '#111', borderRadius: '8px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', cursor: 'pointer' }}>
                           {v.thumbnailUrl ? (
@@ -2705,7 +2717,7 @@ function HomepageMockup() {
                 </div>
               </div>
         </>
-      </div>
+      </section>
 
 
       {/* ── The App ── */}
@@ -2715,53 +2727,59 @@ function HomepageMockup() {
       <MatchDaySection px={px} isMobile={isMobile} />
 
       {/* ── Footer ── */}
-      <div style={{ background: '#0a0a0a', padding: `64px ${px} 40px`, marginTop: '40px' }}>
+      <footer id="sl-footer" className="sl-footer sl-site-footer sl-section" style={{ background: '#0a0a0a', padding: `64px ${px} 40px`, marginTop: '40px' }}>
 
         {/* CTA row — H1 + badges + QR all inline */}
-        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: isMobile ? '28px' : '48px', paddingBottom: '48px' }}>
-          <h2 style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '32px' : '42px', color: '#fff', margin: 0, lineHeight: 1.05 }}>
+        <div id="sl-footer-cta" className="sl-footer-cta" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: isMobile ? '28px' : '48px', paddingBottom: '48px' }}>
+          <h2 id="sl-footer-cta-title" className="sl-footer-cta-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '32px' : '42px', color: '#fff', margin: 0, lineHeight: 1.05 }}>
             Your club is waiting.
           </h2>
-          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: '28px', flexShrink: 0 }}>
-            <img src={appleStoreBadgeImg} alt="Download on the App Store" style={{ height: '40px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
-            <img src={googlePlayBadgeImg} alt="Get it on Google Play" style={{ height: '40px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
-            {!isMobile && <img src={qrWhiteImg} alt="Scan to download Sideline" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />}
+          <div id="sl-footer-downloads" className="sl-footer-downloads sl-download-badges" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: '28px', flexShrink: 0 }}>
+            <img id="sl-download-ios-footer" className="sl-download-ios" src={appleStoreBadgeImg} alt="Download on the App Store" style={{ height: '40px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
+            <img id="sl-download-android-footer" className="sl-download-android" src={googlePlayBadgeImg} alt="Get it on Google Play" style={{ height: '40px', width: 'auto', objectFit: 'contain', cursor: 'pointer' }} />
+            {!isMobile && <img id="sl-footer-qr" className="sl-footer-qr sl-download-qr" src={qrWhiteImg} alt="Scan to download Sideline" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />}
           </div>
         </div>
 
         {/* Lower — all centered, stacked */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '28px', paddingTop: '48px', textAlign: 'center' }}>
+        <div id="sl-footer-lower" className="sl-footer-lower" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '28px', paddingTop: '48px', textAlign: 'center' }}>
           {/* Page links */}
-          <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <nav id="sl-footer-nav" className="sl-footer-nav" aria-label="Footer" style={{ display: 'flex', gap: '32px', flexWrap: 'wrap', justifyContent: 'center' }}>
             {footerLinks.map((link) => (
-              <a key={link.label} href={link.href} style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>{link.label}</a>
+              <a key={link.label} id={`sl-footer-${link.label.toLowerCase().replace(/\s+/g, '-')}`} className="sl-footer-link" href={link.href} style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>{link.label}</a>
             ))}
-          </div>
+          </nav>
 
           {/* Social icons */}
-          <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ cursor: 'pointer', opacity: 0.5 }}>
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L2.012 2.25h6.962l4.265 5.638L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" fill="#fff"/>
-            </svg>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ cursor: 'pointer', opacity: 0.5 }}>
-              <rect x="2" y="2" width="20" height="20" rx="5" stroke="#fff" strokeWidth="1.75"/>
-              <circle cx="12" cy="12" r="4.5" stroke="#fff" strokeWidth="1.75"/>
-              <circle cx="17.5" cy="6.5" r="1" fill="#fff"/>
-            </svg>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ cursor: 'pointer', opacity: 0.5 }}>
-              <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z" stroke="#fff" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/><circle cx="4" cy="4" r="2" stroke="#fff" strokeWidth="1.75"/>
-            </svg>
+          <div id="sl-footer-social" className="sl-footer-social" aria-label="Social media" style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+            <a id="sl-footer-social-x" className="sl-footer-social-link sl-footer-social-x" href="https://x.com/TheSidelineClub" aria-label="Follow SideLine on X" style={{ display: 'flex', opacity: 0.5, transition: 'opacity 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L2.012 2.25h6.962l4.265 5.638L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" fill="#fff"/>
+              </svg>
+            </a>
+            <a id="sl-footer-social-instagram" className="sl-footer-social-link sl-footer-social-instagram" href="https://www.instagram.com/thesideline_club/" aria-label="Follow SideLine on Instagram" style={{ display: 'flex', opacity: 0.5, transition: 'opacity 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                <rect x="2" y="2" width="20" height="20" rx="5" stroke="#fff" strokeWidth="1.75"/>
+                <circle cx="12" cy="12" r="4.5" stroke="#fff" strokeWidth="1.75"/>
+                <circle cx="17.5" cy="6.5" r="1" fill="#fff"/>
+              </svg>
+            </a>
+            <a id="sl-footer-social-linkedin" className="sl-footer-social-link sl-footer-social-linkedin" href="https://www.linkedin.com/company/thesideline/posts/" aria-label="Follow SideLine on LinkedIn" style={{ display: 'flex', opacity: 0.5, transition: 'opacity 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z" stroke="#fff" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/><circle cx="4" cy="4" r="2" stroke="#fff" strokeWidth="1.75"/>
+              </svg>
+            </a>
           </div>
 
           {/* Copyright */}
-          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>© 2026 Sideline Sports Inc. All rights reserved.</span>
+          <span id="sl-footer-copyright" className="sl-footer-copyright" style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>© 2026 Sideline Sports Inc. All rights reserved.</span>
 
           {/* Disclaimer */}
-          <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', color: 'rgba(255,255,255,0.18)', margin: 0, lineHeight: 1.65, maxWidth: '600px' }}>
+          <p id="sl-footer-disclaimer" className="sl-footer-disclaimer" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', color: 'rgba(255,255,255,0.18)', margin: 0, lineHeight: 1.65, maxWidth: '600px' }}>
             Third-party names, trademarks and imagery are used solely for identification and editorial purposes. Their use does not imply endorsement or affiliation with Sideline.
           </p>
         </div>
-      </div>
+      </footer>
 
     </div>
   )
@@ -3263,8 +3281,12 @@ const showDesignKit =
 
 export default function App() {
   if (showDesignKit) {
-    return <DesignKitApp />
+    return <div id="sl-design-kit" className="sl-design-kit"><DesignKitApp /></div>
   }
 
-  return <HomepageMockup />
+  return (
+    <div id="sl-app" className="sl-app">
+      <HomepageMockup />
+    </div>
+  )
 }
