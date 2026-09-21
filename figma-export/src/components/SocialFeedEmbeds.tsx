@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react'
 import type { LiveSocialTweet } from '@/hooks/useClubFeed'
 
 function XBrandIcon() {
@@ -24,7 +25,13 @@ function tweetBody(tweet: LiveSocialTweet) {
   return ''
 }
 
-export function SocialFeedEmbeds({ tweets }: { tweets: LiveSocialTweet[] }) {
+export function SocialFeedEmbeds({
+  tweets,
+  onItemClick,
+}: {
+  tweets: LiveSocialTweet[]
+  onItemClick: (event: MouseEvent) => void
+}) {
   return (
     <div
       id="sl-feed-social-list"
@@ -34,20 +41,19 @@ export function SocialFeedEmbeds({ tweets }: { tweets: LiveSocialTweet[] }) {
       {tweets.map((tweet) => {
         const body = tweetBody(tweet)
         return (
-          <a
+          <button
             key={tweet.id}
+            type="button"
             id={`sl-feed-social-${tweet.id}`}
-            className="sl-feed-social-card"
-            href={tweet.tweetUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+            className="sl-feed-social-card sl-feed-clickable"
+            onClick={onItemClick}
           >
             <div className="sl-feed-social-card-header">
               <XBrandIcon />
               <span className="sl-feed-social-handle">{tweetHandle(tweet)}</span>
             </div>
             {body ? <p className="sl-feed-social-text">{body}</p> : null}
-          </a>
+          </button>
         )
       })}
     </div>

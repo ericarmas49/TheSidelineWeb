@@ -15,7 +15,7 @@
     { "source": "/cookie-notice", "destination": "/cookie-notice/index.html" },
     { "source": "/cookie-notice/", "destination": "/cookie-notice/index.html" },
     {
-      "source": "/((?!api/|privacy|terms-of-service|cookie-notice|contact-us|favicon\\.png|\\.well-known/|styles\\.css|contact-modal\\.js|screenshots/|club-publication-excludes\\.json).*)",
+      "source": "/((?!api/|privacy|terms-of-service|cookie-notice|contact-us|favicon\\.png|\\.well-known/|styles\\.css|contact-modal\\.js|screenshots/|assets/|club-publication-excludes\\.json).*)",
       "destination": "/index.html"
     }
   ],

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo, type ReactNode } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, type MouseEvent, type ReactNode } from 'react'
 import wordmarkLightImg from '@/imports/SIDELINE1-1.png'
 import emailHeaderWelcomeImg from '@/imports/Universal_Email_Header.png'
 import appScreenshotImg from '@/imports/01KZ9HS7M08TGMZQ1M4XJ7QYHF.jpeg'
@@ -2041,6 +2041,7 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
   const exitedDownRef = useRef(false)
   const exitedUpRef = useRef(false)
   const lockedRef = useRef(false)
+  const pinScrollYRef = useRef<number | null>(null)
   const step = APP_STEPS[active]
 
   const goTo = (i: number, { animate = true }: { animate?: boolean } = {}) => {
@@ -2071,56 +2072,45 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
     nav.scrollTo({ left: tabLeft - navWidth / 2 + tabWidth / 2, behavior: 'smooth' })
   }, [active])
 
-  // Lock scroll while the user steps through all four panels
+  // Stop scroll at the pin point and step through all four panels.
   useEffect(() => {
-    const SNAP_PX = 12
+    const PIN_TOLERANCE = 12
+    const STEP_COOLDOWN_MS = 700
+    const MIN_WHEEL_DELTA = 8
+    const MIN_TOUCH_DELTA = 40
+    const EDGE_EXIT_SCROLL_BUDGET = 360
     const last = APP_STEPS.length - 1
-    let lastScrollY = window.scrollY
-    let pinRaf = 0
+    let edgeExitProgress = 0
 
     const getRect = () => sectionRef.current?.getBoundingClientRect() ?? null
 
-    const isNearPinned = (rect: DOMRect) =>
-      Math.abs(rect.top) <= SNAP_PX && rect.bottom > SNAP_PX
+    const isPinned = (rect: DOMRect) => Math.abs(rect.top) <= PIN_TOLERANCE
 
-    const isInLockZone = (rect: DOMRect) => {
+    const isSectionVisible = (rect: DOMRect) => {
       const vh = window.innerHeight
-      if (rect.bottom <= 0 || rect.top >= vh) return false
-      if (isNearPinned(rect)) return true
-      // Fast scroll overshoot — section top passed viewport top but section still visible
-      if (rect.top < -SNAP_PX && rect.bottom > vh * 0.45) return true
-      // Nearly pinned — catches fast scroll that lands slightly below the pin point
-      if (rect.top > SNAP_PX && rect.top < vh * 0.2) return true
-      return false
+      return rect.bottom > 0 && rect.top < vh
     }
 
-    const snapToSectionTop = () => {
-      const rect = getRect()
-      if (!rect || Math.abs(rect.top) <= 1) return
-      window.scrollTo({ top: window.scrollY + rect.top })
+    const lockPageScroll = (scrollY: number) => {
+      pinScrollYRef.current = scrollY
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.left = '0'
+      document.body.style.right = '0'
+      document.body.style.width = '100%'
+      document.body.style.overflow = 'hidden'
     }
 
-    const stopPinLoop = () => {
-      if (pinRaf) {
-        cancelAnimationFrame(pinRaf)
-        pinRaf = 0
-      }
-    }
-
-    const startPinLoop = () => {
-      if (pinRaf) return
-      const loop = () => {
-        if (!lockedRef.current) {
-          stopPinLoop()
-          return
-        }
-        const rect = getRect()
-        if (rect && Math.abs(rect.top) > 1) {
-          window.scrollTo({ top: window.scrollY + rect.top })
-        }
-        pinRaf = requestAnimationFrame(loop)
-      }
-      pinRaf = requestAnimationFrame(loop)
+    const unlockPageScroll = () => {
+      const scrollY = pinScrollYRef.current ?? window.scrollY
+      document.body.style.position = ''
+      document.body.style.top = ''
+      document.body.style.left = ''
+      document.body.style.right = ''
+      document.body.style.width = ''
+      document.body.style.overflow = ''
+      pinScrollYRef.current = null
+      window.scrollTo({ top: scrollY, behavior: 'auto' })
     }
 
     const canIntercept = (goingDown: boolean) => {
@@ -2129,29 +2119,33 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
       return true
     }
 
-    const tryExit = (goingDown: boolean) => {
+    const tryExit = (goingDown: boolean, delta: number) => {
       const cur = activeRef.current
-      if (goingDown && cur === last) {
-        exitedDownRef.current = true
+      const atDownEdge = goingDown && cur === last
+      const atUpEdge = !goingDown && cur === 0
+
+      if (atDownEdge || atUpEdge) {
+        edgeExitProgress += Math.abs(delta)
+        if (edgeExitProgress < EDGE_EXIT_SCROLL_BUDGET) return 'hold'
+        edgeExitProgress = 0
+        if (atDownEdge) exitedDownRef.current = true
+        if (atUpEdge) exitedUpRef.current = true
         lockedRef.current = false
-        stopPinLoop()
-        return true
+        unlockPageScroll()
+        return 'release'
       }
-      if (!goingDown && cur === 0) {
-        exitedUpRef.current = true
-        lockedRef.current = false
-        stopPinLoop()
-        return true
-      }
-      return false
+
+      edgeExitProgress = 0
+      return 'none'
     }
 
     const beginLock = (goingDown: boolean) => {
       if (lockedRef.current) return false
+      const rect = getRect()
+      if (!rect) return false
       lockedRef.current = true
+      lockPageScroll(window.scrollY + rect.top)
       goTo(goingDown ? 0 : last, { animate: false })
-      snapToSectionTop()
-      startPinLoop()
       return true
     }
 
@@ -2161,66 +2155,45 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
       if (goingDown && cur < last) {
         stepLockRef.current = true
         goTo(cur + 1)
-        setTimeout(() => { stepLockRef.current = false }, 700)
+        setTimeout(() => { stepLockRef.current = false }, STEP_COOLDOWN_MS)
       } else if (!goingDown && cur > 0) {
         stepLockRef.current = true
         goTo(cur - 1)
-        setTimeout(() => { stepLockRef.current = false }, 700)
+        setTimeout(() => { stepLockRef.current = false }, STEP_COOLDOWN_MS)
       }
     }
 
-    const handleLockInput = (goingDown: boolean, delta: number, preventDefault?: () => void) => {
+    const handleStepInput = (goingDown: boolean, delta: number) => {
       const rect = getRect()
-      if (!rect || !isInLockZone(rect)) {
-        if (!isNearPinned(rect)) lockedRef.current = false
-        return false
+      if (!rect || !isSectionVisible(rect) || !canIntercept(goingDown)) return false
+
+      if (!lockedRef.current) {
+        if (!isPinned(rect)) return false
+        beginLock(goingDown)
+        return true
       }
-      if (!canIntercept(goingDown)) return false
-      if (tryExit(goingDown)) return true
-      preventDefault?.()
-      snapToSectionTop()
-      if (beginLock(goingDown)) return true
-      if (Math.abs(delta) < 8) return true
+
+      const exitState = tryExit(goingDown, delta)
+      if (exitState === 'hold' || exitState === 'release') return true
+      if (Math.abs(delta) < MIN_WHEEL_DELTA) return true
       advanceStep(goingDown)
       return true
     }
 
-    const onScroll = () => {
-      const rect = getRect()
-      if (!rect) return
-      const scrollY = window.scrollY
-      const goingDown = scrollY > lastScrollY
-      lastScrollY = scrollY
-
-      if (!isInLockZone(rect)) {
-        if (!isNearPinned(rect)) lockedRef.current = false
-        return
-      }
-      if (!canIntercept(goingDown)) return
-
-      // Catch momentum / fast scroll that skips the narrow pin window
-      if (!isNearPinned(rect)) {
-        snapToSectionTop()
-        beginLock(goingDown)
-        return
-      }
-
-      if (lockedRef.current) snapToSectionTop()
-    }
-
     const onWheel = (e: WheelEvent) => {
-      handleLockInput(e.deltaY > 0, e.deltaY, () => {
+      if (handleStepInput(e.deltaY > 0, e.deltaY)) {
         e.preventDefault()
         e.stopImmediatePropagation()
-      })
+      }
     }
 
     const observer = new IntersectionObserver(([entry]) => {
       if (!entry.isIntersecting) {
         exitedDownRef.current = false
         exitedUpRef.current = false
+        if (lockedRef.current) unlockPageScroll()
         lockedRef.current = false
-        stopPinLoop()
+        edgeExitProgress = 0
       }
     }, { threshold: 0 })
     if (sectionRef.current) observer.observe(sectionRef.current)
@@ -2228,32 +2201,31 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
     let touchStartY = 0
     const onTouchStart = (e: TouchEvent) => { touchStartY = e.touches[0].clientY }
     const onTouchMove = (e: TouchEvent) => {
+      const rect = getRect()
+      if (!rect) return
+      if (!lockedRef.current && !isPinned(rect)) return
+      if (!isSectionVisible(rect)) return
       const touchY = e.touches[0]?.clientY ?? touchStartY
       const goingDown = touchStartY - touchY > 0
-      const rect = getRect()
-      if (!rect || !isInLockZone(rect)) return
       if (!canIntercept(goingDown)) return
-      if (tryExit(goingDown)) return
       e.preventDefault()
-      snapToSectionTop()
     }
     const onTouchEnd = (e: TouchEvent) => {
       const deltaY = touchStartY - e.changedTouches[0].clientY
-      if (Math.abs(deltaY) < 40) return
-      handleLockInput(deltaY > 0, deltaY)
+      if (Math.abs(deltaY) < MIN_TOUCH_DELTA) return
+      handleStepInput(deltaY > 0, deltaY)
     }
 
     window.addEventListener('wheel', onWheel, { passive: false, capture: true })
-    window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('touchstart', onTouchStart, { passive: true, capture: true })
     window.addEventListener('touchmove', onTouchMove, { passive: false, capture: true })
     window.addEventListener('touchend', onTouchEnd, { passive: true, capture: true })
 
     return () => {
       observer.disconnect()
-      stopPinLoop()
+      if (lockedRef.current) unlockPageScroll()
+      lockedRef.current = false
       window.removeEventListener('wheel', onWheel, { capture: true } as EventListenerOptions)
-      window.removeEventListener('scroll', onScroll)
       window.removeEventListener('touchstart', onTouchStart, { capture: true } as EventListenerOptions)
       window.removeEventListener('touchmove', onTouchMove, { capture: true } as EventListenerOptions)
       window.removeEventListener('touchend', onTouchEnd, { capture: true } as EventListenerOptions)
@@ -2737,13 +2709,63 @@ function GooglePlayBadge({ id, className, height }: { id: string; className: str
   )
 }
 
+function GamedayModal({ onClose, isMobile }: { onClose: () => void; isMobile: boolean }) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = ''
+    }
+  }, [onClose])
+
+  return (
+    <div
+      id="sl-gameday-modal"
+      className="sl-gameday-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="sl-gameday-modal-title"
+      onClick={onClose}
+    >
+      <div className="sl-gameday-modal-panel" onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="sl-gameday-modal-close" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+        <h2 id="sl-gameday-modal-title" className="sl-gameday-modal-title">
+          Download the app to see more
+        </h2>
+        <img
+          id="sl-gameday-modal-qr"
+          className="sl-gameday-modal-qr sl-download-qr"
+          src={qrWhiteImg}
+          alt="Scan to download Sideline"
+        />
+        <div className="sl-gameday-modal-badges" style={{ flexDirection: isMobile ? 'column' : 'row' }}>
+          <AppStoreBadge id="sl-gameday-modal-app-store" className="sl-gameday-modal-app-store" height={isMobile ? 44 : 48} />
+          <GooglePlayBadge id="sl-gameday-modal-google-play" className="sl-gameday-modal-google-play" height={isMobile ? 44 : 48} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function HomepageMockup() {
   const [feedClub, setFeedClub] = useState<Club>(CLUBS.find(c => c.id === 'ars')!)
   const [hoveredClub, setHoveredClub] = useState<string | null>(null)
+  const [gamedayModalOpen, setGamedayModalOpen] = useState(false)
   const isMobile = useIsMobile()
   const isWide = useIsWide()
   const px = isMobile ? '20px' : '48px'
   const videoCardWidth = isMobile ? '280px' : '350px'
+  const openGamedayModal = useCallback((event: MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setGamedayModalOpen(true)
+  }, [])
   const { loading: feedLoading, articles: liveArticles, podcasts: livePodcasts, social: liveSocial, videos: liveVideos } = useClubFeed(feedClub.id, feedClub.color)
   const mockFeed = FEED_BY_CLUB[feedClub.id] ?? genericFeed(feedClub)
   const articleFeed = liveArticles ?? mockFeed
@@ -2961,7 +2983,7 @@ function HomepageMockup() {
 
                 {/* Top row: lead + secondary */}
                 <div className="sl-feed-articles-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '20px' : '32px', position: 'relative', zIndex: 1, alignItems: 'stretch' }}>
-                  <div id="sl-feed-article-lead" className="sl-feed-article-lead" style={{ paddingBottom: '28px' }}>
+                  <div id="sl-feed-article-lead" className="sl-feed-article-lead sl-feed-clickable" role="button" tabIndex={0} onClick={openGamedayModal} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGamedayModalOpen(true) } }} style={{ paddingBottom: '28px', cursor: 'pointer' }}>
                     <div style={{ width: '100%', aspectRatio: '3/2', overflow: 'hidden', marginBottom: '14px' }}>
                       <img src={articleFeed.lead.img} alt={feedClub.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     </div>
@@ -2973,9 +2995,9 @@ function HomepageMockup() {
                       </p>
                     )}
                   </div>
-                  <div id="sl-feed-articles-list" className="sl-feed-articles-list" style={{ paddingBottom: '28px', paddingRight: isMobile ? '0' : '25%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1 }}>
+                  <div id="sl-feed-articles-list" className="sl-feed-articles-list" style={{ paddingBottom: '28px', paddingRight: '0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1 }}>
                     {articleFeed.secondary.map((s, i, arr) => (
-                      <div key={i} id={`sl-feed-article-${i + 1}`} className="sl-feed-article-item" style={{ paddingBottom: i < arr.length - 1 ? '16px' : '0', marginBottom: i < arr.length - 1 ? '16px' : '0', display: 'flex', gap: '12px', alignItems: 'flex-start', flex: 1 }}>
+                      <div key={i} id={`sl-feed-article-${i + 1}`} className="sl-feed-article-item sl-feed-clickable" role="button" tabIndex={0} onClick={openGamedayModal} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGamedayModalOpen(true) } }} style={{ paddingBottom: i < arr.length - 1 ? '16px' : '0', marginBottom: i < arr.length - 1 ? '16px' : '0', display: 'flex', gap: '12px', alignItems: 'flex-start', flex: 1, cursor: 'pointer' }}>
                         {s.img && (
                           <div style={{ flexShrink: 0, width: '150px', height: '100px', overflow: 'hidden', borderRadius: '3px' }}>
                             <img src={s.img} alt={s.headline} style={{ width: '150px', height: '100px', objectFit: 'cover', display: 'block' }} />
@@ -3004,7 +3026,7 @@ function HomepageMockup() {
                   </div>
                   <div id="sl-feed-podcasts-grid" className="sl-feed-podcasts-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))', gap: '10px', width: '100%', minWidth: 0 }}>
                     {podcastItems.map((p, i) => (
-                      <div key={i} id={`sl-feed-podcast-${i + 1}`} className="sl-feed-podcast-card" style={{ display: 'flex', gap: isMobile ? '10px' : '12px', alignItems: 'center', padding: isMobile ? '10px' : '12px', border: '1px solid #e8e8e8', borderRadius: '12px', background: '#f8f8f8', minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+                      <div key={i} id={`sl-feed-podcast-${i + 1}`} className="sl-feed-podcast-card sl-feed-clickable" role="button" tabIndex={0} onClick={openGamedayModal} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGamedayModalOpen(true) } }} style={{ display: 'flex', gap: isMobile ? '10px' : '12px', alignItems: 'center', padding: isMobile ? '10px' : '12px', border: '1px solid #e8e8e8', borderRadius: '12px', background: '#f8f8f8', minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden', cursor: 'pointer' }}>
                         {/* Artwork with play overlay */}
                         <div style={{ position: 'relative', width: '100px', height: '100px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }}>
                           <img src={p.thumb} alt={p.show} style={{ width: '100px', height: '100px', objectFit: 'cover', display: 'block' }} />
@@ -3041,7 +3063,7 @@ function HomepageMockup() {
                   </div>
                   <div id="sl-feed-social-scroll" className="sl-feed-social-scroll" style={{ overflowX: 'auto', scrollbarWidth: 'none', marginLeft: '-4px', paddingLeft: '4px' }}>
                     {liveSocial.length ? (
-                      <SocialFeedEmbeds tweets={liveSocial} />
+                      <SocialFeedEmbeds tweets={liveSocial} onItemClick={openGamedayModal} />
                     ) : (
                       <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', color: '#888' }}>
                         {feedLoading ? 'Loading social…' : 'No social posts available for this club right now.'}
@@ -3060,7 +3082,7 @@ function HomepageMockup() {
                 <div id="sl-feed-videos-scroll" className="sl-feed-videos-scroll" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
                   <div id="sl-feed-videos-list" className="sl-feed-videos-list" style={{ display: 'flex', gap: '16px', paddingBottom: '4px' }}>
                     {videoItems.map((v, i) => (
-                      <div key={i} id={`sl-feed-video-${i + 1}`} className="sl-feed-video-card" style={{ flexShrink: 0, width: videoCardWidth }}>
+                      <div key={i} id={`sl-feed-video-${i + 1}`} className="sl-feed-video-card sl-feed-clickable" role="button" tabIndex={0} onClick={openGamedayModal} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGamedayModalOpen(true) } }} style={{ flexShrink: 0, width: videoCardWidth, cursor: 'pointer' }}>
                         {/* Thumbnail */}
                         <div style={{ width: videoCardWidth, aspectRatio: '16/9', background: '#111', borderRadius: '8px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', cursor: 'pointer' }}>
                           {v.thumbnailUrl ? (
@@ -3105,7 +3127,7 @@ function HomepageMockup() {
       <footer id="sl-footer" className="sl-footer sl-site-footer sl-section" style={{ background: '#0a0a0a', padding: `64px ${px} 40px`, marginTop: '40px' }}>
 
         {/* CTA row — H1 + badges + QR all inline */}
-        <div id="sl-footer-cta" className="sl-footer-cta" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: isMobile ? '28px' : '48px', paddingBottom: '48px' }}>
+        <div id="sl-footer-cta" className="sl-footer-cta" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', justifyContent: 'space-between', gap: isMobile ? '28px' : '48px', paddingBottom: '48px' }}>
           <h2 id="sl-footer-cta-title" className="sl-footer-cta-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '32px' : '42px', color: '#fff', margin: 0, lineHeight: 1.05 }}>
             Your club is waiting.
           </h2>
@@ -3155,6 +3177,10 @@ function HomepageMockup() {
           </p>
         </div>
       </footer>
+
+      {gamedayModalOpen && (
+        <GamedayModal onClose={() => setGamedayModalOpen(false)} isMobile={isMobile} />
+      )}
 
     </div>
   )
