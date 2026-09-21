@@ -276,7 +276,6 @@ const CLUBS: Club[] = [
   { id: 'nfo', name: 'Forest',         newsletter: 'Forest Insider',       color: '#E53233', onColor: '#fff', logo: getClubLogo('nfo') },
   { id: 'sun', name: 'Sunderland',     newsletter: 'Black Cats Insider',   color: '#EB172B', onColor: '#fff', logo: getClubLogo('sun') },
   { id: 'tot', name: 'Spurs',          newsletter: 'Spurs Insider',        color: '#132257', onColor: '#fff', logo: getClubLogo('tot') },
-  { id: 'whu', name: 'West Ham',       newsletter: 'Hammers Insider',      color: '#7A263A', onColor: '#fff', logo: getClubLogo('whu') },
 ]
 
 const PHOTO =
@@ -2736,7 +2735,7 @@ function GamedayModal({ onClose, isMobile }: { onClose: () => void; isMobile: bo
           ×
         </button>
         <h2 id="sl-gameday-modal-title" className="sl-gameday-modal-title">
-          Download the app to see more
+          Download The Sideline App to see more
         </h2>
         <img
           id="sl-gameday-modal-qr"

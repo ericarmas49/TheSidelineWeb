@@ -18,7 +18,6 @@ import newcastleLogo from '@/imports/club-logos/newcastle-united.png'
 import nottinghamForestLogo from '@/imports/club-logos/nottingham-forest.png'
 import sunderlandLogo from '@/imports/club-logos/sunderland.png'
 import tottenhamLogo from '@/imports/club-logos/tottenham-hotspur.png'
-import westHamLogo from '@/imports/club-logos/west-ham-united.png'
 import wolvesLogo from '@/imports/club-logos/wolverhampton-wanderers.png'
 import premierLeagueLogo from '@/imports/club-logos/premier-league.png'
 
@@ -43,7 +42,6 @@ export const CLUB_LOGOS: Record<string, string> = {
   nfo: nottinghamForestLogo,
   sun: sunderlandLogo,
   tot: tottenhamLogo,
-  whu: westHamLogo,
   wol: wolvesLogo,
 }
 
