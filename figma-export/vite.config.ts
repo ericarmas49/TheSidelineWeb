@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
 import siteConfiguration from './.figma/make/site.json'
+import { xTweetsDevProxy } from './vite-x-tweets-proxy'
 
 const LEGAL_PAGE_ROUTES = ['/contact-us', '/privacy', '/terms-of-service', '/cookie-notice']
 
@@ -49,6 +50,7 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       legalPagesPlugin(),
+      xTweetsDevProxy(),
       figmaSiteConfiguration(siteConfiguration),
       figmaErrorOverlayReplay(),
       figmaReactRefreshBoundaryFallback(),
@@ -65,7 +67,11 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       watch: { ignored: ['**/.figma/**'] },
       proxy: {
-        '/api': {
+        '/api/wp': {
+          target: 'http://127.0.0.1:8080',
+          changeOrigin: true,
+        },
+        '/api/contact': {
           target: 'http://127.0.0.1:8080',
           changeOrigin: true,
         },

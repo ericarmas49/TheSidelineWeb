@@ -2735,7 +2735,7 @@ function GamedayModal({ onClose, isMobile }: { onClose: () => void; isMobile: bo
           ×
         </button>
         <h2 id="sl-gameday-modal-title" className="sl-gameday-modal-title">
-          Download The Sideline App to see more
+          Download the Sideline app to see more.
         </h2>
         <img
           id="sl-gameday-modal-qr"

@@ -33,6 +33,8 @@ export type LiveSocialTweet = {
   tweetUrl: string
   username?: string
   displayName?: string
+  avatarUrl?: string
+  accountEmoji?: string
   text?: string
   isProfileFallback?: boolean
 }
@@ -137,6 +139,8 @@ function mapSocialFeed(
     tweetUrl: tweet.tweetUrl,
     username: tweet.username ?? '',
     displayName: tweet.displayName ?? '',
+    avatarUrl: tweet.avatarUrl ?? '',
+    accountEmoji: tweet.accountEmoji ?? '',
     text: tweet.text ?? '',
     isProfileFallback: tweet.isProfileFallback,
   }))

@@ -503,6 +503,28 @@ function getSocialFeedAccountLabel(post, username) {
   return label || `@${username}`;
 }
 
+function getSocialFeedAccountEmoji(post, label) {
+  const fromMeta = post.meta?._social_feed_emoji || post.meta?._social_feed_icon_emoji;
+  if (fromMeta) return String(fromMeta).trim();
+
+  const match = String(label || "").match(/^(\p{Extended_Pictographic})/u);
+  return match?.[1] || "";
+}
+
+function buildXAccountAvatarUrl(username) {
+  const clean = String(username || "")
+    .replace(/^@/, "")
+    .trim();
+  if (!clean) return "";
+  return `https://unavatar.io/x/${encodeURIComponent(clean)}`;
+}
+
+function getSocialFeedAccountAvatarUrl(post, username) {
+  const fromMeta = post.meta?._social_feed_avatar_url || post.meta?._social_feed_icon_url;
+  if (fromMeta) return String(fromMeta).trim();
+  return buildXAccountAvatarUrl(username);
+}
+
 function rankClubSocialAccounts(posts) {
   const byUser = new Map();
 
@@ -516,7 +538,14 @@ function rankClubSocialAccounts(posts) {
     const previous = byUser.get(username);
 
     if (!previous || score > previous.score) {
-      byUser.set(username, { username, label, url, score });
+      byUser.set(username, {
+        username,
+        label,
+        url,
+        score,
+        accountEmoji: getSocialFeedAccountEmoji(post, label),
+        avatarUrl: getSocialFeedAccountAvatarUrl(post, username),
+      });
     }
   }
 
@@ -564,7 +593,7 @@ function buildXTweetUrl(tweet) {
 function buildXTweetEmbedMarkup(tweetUrl) {
   if (!tweetUrl) return "";
 
-  return `<blockquote class="twitter-tweet" data-theme="dark" data-dnt="true" data-width="390"><a href="${escapeHtml(tweetUrl)}"></a></blockquote>`;
+  return `<blockquote class="twitter-tweet" data-theme="light" data-dnt="true" data-width="390" data-conversation="none" data-border-color="rgba(255,255,255,0)"><a href="${escapeHtml(tweetUrl)}"></a></blockquote>`;
 }
 
 function buildXProfileTimelineEmbedMarkup(profileUrl) {
@@ -589,6 +618,12 @@ function formatXTweetHtml(tweet) {
   `.trim();
 }
 
+function resolveTweetAvatarUrl(tweet, username) {
+  if (tweet.avatarUrl) return tweet.avatarUrl;
+  if (tweet.profile_image_url) return tweet.profile_image_url;
+  return buildXAccountAvatarUrl(username);
+}
+
 function mapXTweetToFeedItem(tweet) {
   const tweetUrl = buildXTweetUrl(tweet);
   const username = tweet.source_username || tweet.sourceUsername || "";
@@ -599,6 +634,9 @@ function mapXTweetToFeedItem(tweet) {
     embedHtml: buildXTweetEmbedMarkup(tweetUrl),
     tweetUrl,
     username,
+    displayName: tweet.displayName || "",
+    avatarUrl: resolveTweetAvatarUrl(tweet, username),
+    accountEmoji: tweet.accountEmoji || "",
     text: String(tweet.text || "").trim(),
     createdAt: tweet.created_at || "",
   };
@@ -621,6 +659,8 @@ function mapProfileFallbackToFeedItem(account) {
     tweetUrl: profileUrl,
     username: account.username,
     displayName: account.label,
+    avatarUrl: account.avatarUrl || buildXAccountAvatarUrl(account.username),
+    accountEmoji: account.accountEmoji || "",
     text: "",
     isProfileFallback: true,
   };
@@ -656,6 +696,9 @@ async function fetchClubSocialTweets(accounts, { maxAccounts, maxPerUser, limit,
           mapXTweetToFeedItem({
             ...tweet,
             source_username: tweet.source_username || account.username,
+            displayName: account.label,
+            avatarUrl: account.avatarUrl,
+            accountEmoji: account.accountEmoji,
           }),
         );
       }),
@@ -684,6 +727,8 @@ function toSocialFeed(tweets) {
       tweetUrl: tweet.tweetUrl,
       username: tweet.username || "",
       displayName: tweet.displayName || "",
+      avatarUrl: tweet.avatarUrl || "",
+      accountEmoji: tweet.accountEmoji || "",
       text: tweet.text || "",
       isProfileFallback: Boolean(tweet.isProfileFallback),
     })),

@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react'
+import { useMemo, useState, type MouseEvent } from 'react'
 import type { LiveSocialTweet } from '@/hooks/useClubFeed'
 
 function XBrandIcon() {
@@ -25,6 +25,79 @@ function tweetBody(tweet: LiveSocialTweet) {
   return ''
 }
 
+function accountAvatarFallback(tweet: LiveSocialTweet) {
+  if (tweet.accountEmoji) return tweet.accountEmoji
+  const initial = tweet.displayName?.replace(/^[^\p{L}\p{N}]+/u, '').trim()?.[0]
+  if (initial) return initial.toUpperCase()
+  const handle = tweet.username?.[0]
+  if (handle) return handle.toUpperCase()
+  return '𝕏'
+}
+
+function SocialAccountAvatar({ tweet }: { tweet: LiveSocialTweet }) {
+  const [attempt, setAttempt] = useState(0)
+  const fallback = accountAvatarFallback(tweet)
+  const username = tweet.username?.replace(/^@/, '').trim()
+
+  const avatarSources = useMemo(() => {
+    const sources = [tweet.avatarUrl?.trim()]
+    if (username) {
+      sources.push(`https://unavatar.io/x/${encodeURIComponent(username)}`)
+    }
+    return sources.filter(Boolean) as string[]
+  }, [tweet.avatarUrl, username])
+
+  const avatarUrl = avatarSources[attempt]
+
+  if (avatarUrl) {
+    return (
+      <img
+        className="sl-feed-social-avatar"
+        src={avatarUrl}
+        alt=""
+        width={22}
+        height={22}
+        loading="lazy"
+        decoding="async"
+        referrerPolicy="no-referrer"
+        onError={() => setAttempt((value) => value + 1)}
+      />
+    )
+  }
+
+  return (
+    <span className="sl-feed-social-avatar sl-feed-social-avatar--emoji" aria-hidden="true">
+      {fallback}
+    </span>
+  )
+}
+
+function SocialFeedCard({
+  tweet,
+  onItemClick,
+}: {
+  tweet: LiveSocialTweet
+  onItemClick: (event: MouseEvent) => void
+}) {
+  const body = tweetBody(tweet)
+
+  return (
+    <button
+      type="button"
+      id={`sl-feed-social-${tweet.id}`}
+      className="sl-feed-social-card sl-feed-clickable"
+      onClick={onItemClick}
+    >
+      <div className="sl-feed-social-card-header">
+        <SocialAccountAvatar tweet={tweet} />
+        <XBrandIcon />
+        <span className="sl-feed-social-handle">{tweetHandle(tweet)}</span>
+      </div>
+      {body ? <p className="sl-feed-social-text">{body}</p> : null}
+    </button>
+  )
+}
+
 export function SocialFeedEmbeds({
   tweets,
   onItemClick,
@@ -38,24 +111,9 @@ export function SocialFeedEmbeds({
       className="sl-feed-social-list"
       style={{ display: 'flex', flexDirection: 'row', gap: '12px', paddingBottom: '4px', width: 'max-content' }}
     >
-      {tweets.map((tweet) => {
-        const body = tweetBody(tweet)
-        return (
-          <button
-            key={tweet.id}
-            type="button"
-            id={`sl-feed-social-${tweet.id}`}
-            className="sl-feed-social-card sl-feed-clickable"
-            onClick={onItemClick}
-          >
-            <div className="sl-feed-social-card-header">
-              <XBrandIcon />
-              <span className="sl-feed-social-handle">{tweetHandle(tweet)}</span>
-            </div>
-            {body ? <p className="sl-feed-social-text">{body}</p> : null}
-          </button>
-        )
-      })}
+      {tweets.map((tweet) => (
+        <SocialFeedCard key={tweet.id} tweet={tweet} onItemClick={onItemClick} />
+      ))}
     </div>
   )
 }
