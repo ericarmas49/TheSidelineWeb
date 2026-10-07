@@ -3758,12 +3758,6 @@ p.sl-spectator-body {
   display: block;
 }
 
-.sl-home-footer .sl-download-android {
-  opacity: 0.45;
-  cursor: default;
-  pointer-events: none;
-}
-
 .sl-home-footer .sl-footer-qr {
   width: 80px;
   height: 80px;

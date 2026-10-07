@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo, type MouseEvent, type ReactNode } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
 import wordmarkLightImg from '@/imports/SIDELINE1-1.png'
 import emailHeaderWelcomeImg from '@/imports/Universal_Email_Header.png'
 import appScreenshotImg from '@/imports/01KZ9HS7M08TGMZQ1M4XJ7QYHF.jpeg'
@@ -2437,6 +2437,20 @@ function AppCarousel({ steps, px, isMobile }: { steps: AppStep[]; px: string; is
 }
 
 const APP_STORE_URL = 'https://apps.apple.com/us/app/sideline-club/id6789336406'
+const GOOGLE_PLAY_URL = 'https://play.google.com/store/apps/details?id=com.thesidelineapp.app&hl=en_US'
+
+const downloadTextLinkStyle: CSSProperties = {
+  fontFamily: "'Inter', sans-serif",
+  fontSize: '11px',
+  fontWeight: 700,
+  color: '#0a0a0a',
+  letterSpacing: '0.04em',
+  cursor: 'pointer',
+  borderBottom: '1.5px solid #0a0a0a',
+  paddingBottom: '1px',
+  whiteSpace: 'nowrap',
+  textDecoration: 'none',
+}
 
 const FEED_LOADING_SECTIONS = ['Posts', 'Podcasts', 'Social', 'Videos'] as const
 
@@ -2696,15 +2710,17 @@ function AppStoreBadge({ id, className, height }: { id: string; className: strin
 
 function GooglePlayBadge({ id, className, height }: { id: string; className: string; height: number }) {
   return (
-    <span
+    <a
       id={id}
       className={className}
-      aria-label="Get it on Google Play (coming soon)"
-      aria-disabled="true"
-      style={{ display: 'inline-flex', lineHeight: 0, opacity: 0.45, cursor: 'default', pointerEvents: 'none' }}
+      href={GOOGLE_PLAY_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Get it on Google Play"
+      style={{ display: 'inline-flex', lineHeight: 0 }}
     >
       <img src={googlePlayBadgeImg} alt="" style={{ height: `${height}px`, width: 'auto', objectFit: 'contain', display: 'block' }} />
-    </span>
+    </a>
   )
 }
 
@@ -2878,7 +2894,7 @@ function HomepageMockup() {
           </p>
           <div id="sl-hero-downloads" className="sl-hero-downloads sl-download-links" style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'nowrap' }}>
             <a id="sl-download-ios-hero" className="sl-download-ios-link" href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 700, color: '#0a0a0a', letterSpacing: '0.04em', cursor: 'pointer', borderBottom: '1.5px solid #0a0a0a', paddingBottom: '1px', whiteSpace: 'nowrap', textDecoration: 'none' }}>Download for iOS →</a>
-            <span id="sl-download-android-hero" className="sl-download-android-link" aria-disabled="true" style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 700, color: 'rgba(10,10,10,0.45)', letterSpacing: '0.04em', cursor: 'default', borderBottom: '1.5px solid rgba(10,10,10,0.25)', paddingBottom: '1px', whiteSpace: 'nowrap', pointerEvents: 'none' }}>Download for Android →</span>
+            <a id="sl-download-android-hero" className="sl-download-android-link" href={GOOGLE_PLAY_URL} target="_blank" rel="noopener noreferrer" style={{ ...downloadTextLinkStyle, fontSize: '12px' }}>Download for Android →</a>
             {!isMobile && <img id="sl-hero-qr" className="sl-hero-qr sl-download-qr" src={qrDarkImg} alt="Scan to download Sideline" style={{ width: '72px', height: '72px', objectFit: 'contain', display: 'block', flexShrink: 0 }} />}
           </div>
         </div>
