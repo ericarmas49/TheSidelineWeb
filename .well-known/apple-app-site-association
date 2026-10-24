@@ -22,7 +22,9 @@
           "/more",
           "/more/*",
           "/discover",
-          "/favorite-team"
+          "/favorite-team",
+          "/go",
+          "/go/*"
         ]
       }
     ]
