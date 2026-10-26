@@ -12,16 +12,16 @@ import whiteFaviconImg from '@/imports/favicon-white-logo-transparent-background
 import sourcesScreenImg from '@/imports/Screenshot_2026-09-04_at_10.28.52_AM.png'
 import arsenalImg from '@/imports/Arsenal.jpeg'
 import whySidelinePhoneImg from '@/imports/App_Store_Screenshots___Messaging_copy.png'
-import screenImg1 from '@/imports/Matchweek_Opposition-Watch-Cross-Section.jpeg'
+import screenImg1 from '@/imports/Chelsea-Between-Matches.jpeg'
 import screenImg2 from '@/imports/Pre-Match_Injury-Report-Cross-Section_WORKAROUND-TO-REPLACE-POST-MATCH-LINEUP-3.jpeg'
 import screenImg3 from '@/imports/IMG_6753.png'
 import screenImg4 from '@/imports/IMG_6754.png'
 import screenImg5 from '@/imports/Pre-Match_Lineups-Cross-Section-BUT-ACTUALLY-POST-MATCH-1.jpeg'
 import screenImg6 from '@/imports/Post-Match-Conversation_Player-Stats-Cross-Section-3.jpeg'
-import whyImg2 from '@/imports/All-Your-Coverage-Together_Cross-section.jpeg'
+import whyImg2 from '@/imports/Chelsea-All-Your-Coverage-Together.jpeg'
 import whyImg3 from '@/imports/Cut-Through-The-Noise_Cross-Section-4.jpeg'
-import whyImg4 from '@/imports/Experience-Your-Club_History-Main-Hero-Image-2.jpeg'
-import whyImg5 from '@/imports/IMG_1512-1.jpeg'
+import whyImg4 from '@/imports/Chelsea-Club-Culture.jpeg'
+import whyImg5 from '@/imports/Chelsea-New-Voices.jpeg'
 import whyImg6 from '@/imports/Screenshot_2026-09-15_at_12.14.20_PM.jpeg'
 import { SocialFeedEmbeds } from '@/components/SocialFeedEmbeds'
 import { getClubLogo } from '@/lib/clubLogos'
@@ -2237,7 +2237,7 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
       ref={sectionRef}
       style={{
         marginTop: '40px',
-        background: '#111',
+        background: 'rgb(3, 70, 148)',
         padding: `52px ${px} 0`,
         position: 'relative',
         overflow: 'hidden',
@@ -2251,7 +2251,7 @@ function TheAppSection({ px, isMobile, accentColor }: { px: string; isMobile: bo
 
       {/* Eyebrow */}
       <div className="sl-section-eyebrow-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0', flexShrink: 0 }}>
-        <span id="sl-how-it-works-eyebrow" className="sl-section-eyebrow" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', whiteSpace: 'nowrap' }}>How It Works</span>
+        <span id="sl-how-it-works-eyebrow" className="sl-section-eyebrow" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#fff', whiteSpace: 'nowrap' }}>How It Works</span>
         <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
       </div>
 
@@ -2824,6 +2824,7 @@ function HomepageMockup() {
             {[
               { label: 'Why Sideline', id: 'why-sideline', href: '#sl-why' },
               { label: 'Latest News', id: 'latest-news', href: '#sl-club-hub' },
+              { label: 'How It Works', id: 'how-it-works', href: '#sl-how-it-works' },
               { label: 'Match Experience', id: 'match-experience', href: '#sl-matchday' },
               { label: 'Contact Us', id: 'contact-us', href: '/contact-us' },
             ].map(({ label, id, href }) => (
@@ -2865,7 +2866,7 @@ function HomepageMockup() {
         </div>
         {rule2()}
         <div className="sl-masthead-tagline-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 0' }}>
-          <span id="sl-masthead-tagline" className="sl-masthead-tagline" style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#0a0a0a' }}>Chelsea. All in one place.</span>
+          <span id="sl-masthead-tagline" className="sl-masthead-tagline" style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#0a0a0a' }}>Your Club. All in one place.</span>
         </div>
       </header>
 
@@ -3120,9 +3121,7 @@ function HomepageMockup() {
       </section>
 
 
-      {/* ── How it works ──
       <TheAppSection px={px} isMobile={isMobile} accentColor={feedClub.color} />
-      */}
 
       {/* ── Match Day Experience ── */}
       <MatchDaySection px={px} isMobile={isMobile} />
@@ -3133,7 +3132,7 @@ function HomepageMockup() {
         {/* CTA row — H1 + badges + QR all inline */}
         <div id="sl-footer-cta" className="sl-footer-cta" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', justifyContent: 'space-between', gap: isMobile ? '28px' : '48px', paddingBottom: '48px' }}>
           <h2 id="sl-footer-cta-title" className="sl-footer-cta-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '32px' : '42px', color: '#fff', margin: 0, lineHeight: 1.05 }}>
-            Chelsea is waiting.
+            Your club is waiting.
           </h2>
           <div id="sl-footer-downloads" className="sl-footer-downloads sl-download-badges" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: isMobile ? '12px' : '28px', flexShrink: 0 }}>
             <AppStoreBadge id="sl-download-ios-footer" className="sl-download-ios" height={40} />
