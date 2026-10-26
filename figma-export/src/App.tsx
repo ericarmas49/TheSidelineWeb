@@ -18,7 +18,6 @@ import screenImg3 from '@/imports/IMG_6753.png'
 import screenImg4 from '@/imports/IMG_6754.png'
 import screenImg5 from '@/imports/Pre-Match_Lineups-Cross-Section-BUT-ACTUALLY-POST-MATCH-1.jpeg'
 import screenImg6 from '@/imports/Post-Match-Conversation_Player-Stats-Cross-Section-3.jpeg'
-import whyImg1 from '@/imports/Choose-Your-Club_Main-Hero-Image-1.jpeg'
 import whyImg2 from '@/imports/All-Your-Coverage-Together_Cross-section.jpeg'
 import whyImg3 from '@/imports/Cut-Through-The-Noise_Cross-Section-4.jpeg'
 import whyImg4 from '@/imports/Experience-Your-Club_History-Main-Hero-Image-2.jpeg'
@@ -2337,7 +2336,7 @@ function MatchDaySection({ px, isMobile }: { px: string; isMobile: boolean }) {
         <span id="sl-matchday-eyebrow" className="sl-section-eyebrow" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#888' }}>Match Experience</span>
       </div>
       <h2 id="sl-matchday-title" className="sl-section-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '28px' : '42px', color: '#0a0a0a', margin: '0 0 32px', lineHeight: 1.1, letterSpacing: '-0.4px' }}>
-        Your daily club companion.
+        Your daily Gunners companion.
       </h2>
       <div id="sl-matchday-grid" className="sl-matchday-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '0' }}>
         {MATCH_PHASES.map((f, i) => {
@@ -2769,8 +2768,7 @@ function GamedayModal({ onClose, isMobile }: { onClose: () => void; isMobile: bo
 }
 
 function HomepageMockup() {
-  const [feedClub, setFeedClub] = useState<Club>(CLUBS.find(c => c.id === 'ars')!)
-  const [hoveredClub, setHoveredClub] = useState<string | null>(null)
+  const feedClub = CLUBS.find(c => c.id === 'ars')!
   const [gamedayModalOpen, setGamedayModalOpen] = useState(false)
   const isMobile = useIsMobile()
   const isWide = useIsWide()
@@ -2817,16 +2815,15 @@ function HomepageMockup() {
     <div id="sl-homepage" className="sl-homepage sl-page" style={{ background: '#fff', overflowX: 'hidden' }}>
 
       {/* ── Top band ── */}
-      <div id="sl-top-band" className="sl-top-band" style={{ background: '#0a0a0a', padding: `14px ${px}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div id="sl-top-band" className="sl-top-band" style={{ background: 'rgb(239, 1, 7)', padding: `14px ${px}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span id="sl-top-band-label" className="sl-top-band-label" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#fff' }}>
-          Sideline · Premier League Edition
+          Sideline · Arsenal Edition
         </span>
         {!isMobile && (
           <nav id="sl-top-nav" className="sl-top-nav" aria-label="Top navigation" style={{ display: 'flex', gap: '24px' }}>
             {[
               { label: 'Why Sideline', id: 'why-sideline', href: '#sl-why' },
               { label: 'Latest News', id: 'latest-news', href: '#sl-club-hub' },
-              { label: 'How It Works', id: 'how-it-works', href: '#sl-how-it-works' },
               { label: 'Match Experience', id: 'match-experience', href: '#sl-matchday' },
               { label: 'Contact Us', id: 'contact-us', href: '/contact-us' },
             ].map(({ label, id, href }) => (
@@ -2835,7 +2832,7 @@ function HomepageMockup() {
                 id={`sl-top-nav-${id}`}
                 className="sl-top-nav-link"
                 href={href}
-                style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', textDecoration: 'none' }}
+                style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#fff', cursor: 'pointer', textDecoration: 'none' }}
               >
                 {label}
               </a>
@@ -2868,7 +2865,7 @@ function HomepageMockup() {
         </div>
         {rule2()}
         <div className="sl-masthead-tagline-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 0' }}>
-          <span id="sl-masthead-tagline" className="sl-masthead-tagline" style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#0a0a0a' }}>Your Club. all in one place.</span>
+          <span id="sl-masthead-tagline" className="sl-masthead-tagline" style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#0a0a0a' }}>Arsenal. All in one place.</span>
         </div>
       </header>
 
@@ -2887,10 +2884,10 @@ function HomepageMockup() {
           padding: isMobile ? '28px 0 8px' : isWide ? '48px 120px 48px 0' : '36px 0 8px',
         }}>
           <h1 id="sl-hero-title" className="sl-hero-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '32px' : '44px', lineHeight: 1.1, color: '#0a0a0a', margin: '0 0 20px', letterSpacing: '-0.5px' }}>
-            Everything about your club in one place.
+            Everything about Arsenal in one place.
           </h1>
           <p id="sl-hero-body" className="sl-hero-body" style={{ fontFamily: "'Inter', sans-serif", fontSize: isMobile ? '14px' : '16px', lineHeight: 1.7, color: '#444', margin: '0 0 28px' }}>
-            Stop chasing your Premier League club across the internet and take control of your fandom.
+            Stop chasing Arsenal across the internet. All the stories, tactics, transfers, and fan voices — in one app, built around your club.
           </p>
           <div id="sl-hero-downloads" className="sl-hero-downloads sl-download-links" style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'nowrap' }}>
             <a id="sl-download-ios-hero" className="sl-download-ios-link" href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 700, color: '#0a0a0a', letterSpacing: '0.04em', cursor: 'pointer', borderBottom: '1.5px solid #0a0a0a', paddingBottom: '1px', whiteSpace: 'nowrap', textDecoration: 'none' }}>Download for iOS →</a>
@@ -2922,7 +2919,7 @@ function HomepageMockup() {
             alt="Sideline app screens"
             style={{ position: 'absolute', right: '24px', bottom: '32px', maxHeight: 'calc(100% - 32px)', width: 'auto', display: 'block' }}
           />
-          <div id="sl-hero-download-bar" className="sl-hero-download-bar" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#000', padding: '9px 18px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+          <div id="sl-hero-download-bar" className="sl-hero-download-bar" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgb(239, 1, 7)', padding: '9px 18px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
             <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#fff' }}>
               Available For Free Now
             </span>
@@ -2937,14 +2934,14 @@ function HomepageMockup() {
           <span id="sl-why-eyebrow" className="sl-section-eyebrow" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#888' }}>Why Sideline</span>
         </div>
         <h2 id="sl-why-title" className="sl-section-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '28px' : '42px', color: '#0a0a0a', margin: '0 0 32px', lineHeight: 1.1, letterSpacing: '-0.4px' }}>
-          Following your club shouldn't feel like work.
+          Following Arsenal shouldn't feel like work.
         </h2>
         <div id="sl-why-grid" className="sl-why-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '0' }}>
           {[
-            { title: 'Built around your club.', body: 'Put your club at the center because being a fan should always start with the team you love.', n: '01', img: whyImg1 },
+            { title: 'Built around your club.', body: 'Put the Gunners at the center because being a fan should always start with the team you love.', n: '01', img: getClubLogo('ars'), logo: true },
             { title: 'All your coverage together.', body: 'Get your articles, podcasts, videos, social and stats in one place—without ever leaving the app.', n: '02', img: whyImg2 },
             { title: 'Personalized to you.', body: "Choose the sources you love, filter out the ones you don't and shape your experience around how you follow your club.", n: '03', img: whyImg3 },
-            { title: 'Rooted in club culture.', body: "Explore the history, stats, traditions and stories that connect your club's past and present—and shape what comes next.", n: '04', img: whyImg4 },
+            { title: 'Rooted in club culture.', body: "Explore the history, stats, traditions and stories that connect the Gunner's past and present—and shape what comes next.", n: '04', img: whyImg4 },
             { title: 'New voices to discover.', body: 'Step outside your usual routine with fresh takes from 600+ trusted sources you might otherwise miss.', n: '05', img: whyImg5 },
             { title: 'Connected through your club.', body: "Soon, you'll be able to share your perspective and interact with fellow supporters—both online and in person.", n: '06', img: whyImg6 },
           ].map((f, i) => (
@@ -2955,7 +2952,7 @@ function HomepageMockup() {
                 <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', color: '#666', margin: 0, lineHeight: 1.7 }}>{f.body}</p>
               </div>
               <div style={{ flexShrink: 0, width: '136px', height: '136px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img src={f.img} alt={f.title} style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover', borderRadius: '16px', boxShadow: '0 4px 14px rgba(0,0,0,0.18)' }} />
+                <img src={f.img} alt={f.logo ? 'Arsenal' : f.title} style={f.logo ? { width: '112px', height: '112px', display: 'block', objectFit: 'contain' } : { width: '100%', height: '100%', display: 'block', objectFit: 'cover', borderRadius: '16px', boxShadow: '0 4px 14px rgba(0,0,0,0.18)' }} />
               </div>
             </div>
           ))}
@@ -2970,18 +2967,9 @@ function HomepageMockup() {
         </div>
         <div className="sl-section-heading-row" style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
           <h2 id="sl-club-hub-title" className="sl-section-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '28px' : '38px', color: '#0a0a0a', margin: 0, lineHeight: 1.15, letterSpacing: '-0.3px' }}>
-            Pick your club. See what's happening.
+            See what's happening with Arsenal.
           </h2>
         </div>
-
-        {/* Club selector */}
-        <InfiniteClubPicker
-          activeClubId={feedClub.id}
-          hoveredClubId={hoveredClub}
-          onSelect={setFeedClub}
-          onHover={setHoveredClub}
-          onLeave={() => setHoveredClub(null)}
-        />
 
         <div id="sl-club-feed-wrap" className="sl-club-feed-wrap" style={{ position: 'relative' }}>
               {feedLoading && <ClubFeedLoadingNotice clubName={feedClub.name} accentColor={feedClub.color} />}
@@ -3132,19 +3120,20 @@ function HomepageMockup() {
       </section>
 
 
-      {/* ── The App ── */}
+      {/* ── How it works ──
       <TheAppSection px={px} isMobile={isMobile} accentColor={feedClub.color} />
+      */}
 
       {/* ── Match Day Experience ── */}
       <MatchDaySection px={px} isMobile={isMobile} />
 
       {/* ── Footer ── */}
-      <footer id="sl-footer" className="sl-footer sl-site-footer sl-section" style={{ background: '#0a0a0a', padding: `64px ${px} 40px`, marginTop: '40px' }}>
+      <footer id="sl-footer" className="sl-footer sl-site-footer sl-section" style={{ background: 'rgb(239, 1, 7)', padding: `64px ${px} 40px`, marginTop: '40px' }}>
 
         {/* CTA row — H1 + badges + QR all inline */}
         <div id="sl-footer-cta" className="sl-footer-cta" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', justifyContent: 'space-between', gap: isMobile ? '28px' : '48px', paddingBottom: '48px' }}>
           <h2 id="sl-footer-cta-title" className="sl-footer-cta-title" style={{ fontFamily: "'Lora', serif", fontWeight: 700, fontSize: isMobile ? '32px' : '42px', color: '#fff', margin: 0, lineHeight: 1.05 }}>
-            Your club is waiting.
+            Arsenal is waiting.
           </h2>
           <div id="sl-footer-downloads" className="sl-footer-downloads sl-download-badges" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: isMobile ? '12px' : '28px', flexShrink: 0 }}>
             <AppStoreBadge id="sl-download-ios-footer" className="sl-download-ios" height={40} />
@@ -3158,25 +3147,25 @@ function HomepageMockup() {
           {/* Page links */}
           <nav id="sl-footer-nav" className="sl-footer-nav" aria-label="Footer" style={{ display: 'flex', gap: '32px', flexWrap: 'wrap', justifyContent: 'center' }}>
             {footerLinks.map((link) => (
-              <a key={link.label} id={`sl-footer-${link.label.toLowerCase().replace(/\s+/g, '-')}`} className="sl-footer-link" href={link.href} style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>{link.label}</a>
+              <a key={link.label} id={`sl-footer-${link.label.toLowerCase().replace(/\s+/g, '-')}`} className="sl-footer-link" href={link.href} style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#fff', textDecoration: 'none' }}>{link.label}</a>
             ))}
           </nav>
 
           {/* Social icons */}
           <div id="sl-footer-social" className="sl-footer-social" aria-label="Social media" style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-            <a id="sl-footer-social-x" className="sl-footer-social-link sl-footer-social-x" href="https://x.com/TheSidelineClub" target="_blank" rel="noopener noreferrer" aria-label="Follow SideLine on X" style={{ display: 'flex', opacity: 0.5, transition: 'opacity 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5' }}>
+            <a id="sl-footer-social-x" className="sl-footer-social-link sl-footer-social-x" href="https://x.com/TheSidelineClub" target="_blank" rel="noopener noreferrer" aria-label="Follow SideLine on X" style={{ display: 'flex', opacity: 1 }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L2.012 2.25h6.962l4.265 5.638L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" fill="#fff"/>
               </svg>
             </a>
-            <a id="sl-footer-social-instagram" className="sl-footer-social-link sl-footer-social-instagram" href="https://www.instagram.com/thesideline_club/" target="_blank" rel="noopener noreferrer" aria-label="Follow SideLine on Instagram" style={{ display: 'flex', opacity: 0.5, transition: 'opacity 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5' }}>
+            <a id="sl-footer-social-instagram" className="sl-footer-social-link sl-footer-social-instagram" href="https://www.instagram.com/thesideline_club/" target="_blank" rel="noopener noreferrer" aria-label="Follow SideLine on Instagram" style={{ display: 'flex', opacity: 1 }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
                 <rect x="2" y="2" width="20" height="20" rx="5" stroke="#fff" strokeWidth="1.75"/>
                 <circle cx="12" cy="12" r="4.5" stroke="#fff" strokeWidth="1.75"/>
                 <circle cx="17.5" cy="6.5" r="1" fill="#fff"/>
               </svg>
             </a>
-            <a id="sl-footer-social-linkedin" className="sl-footer-social-link sl-footer-social-linkedin" href="https://www.linkedin.com/company/thesideline/posts/" target="_blank" rel="noopener noreferrer" aria-label="Follow SideLine on LinkedIn" style={{ display: 'flex', opacity: 0.5, transition: 'opacity 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5' }}>
+            <a id="sl-footer-social-linkedin" className="sl-footer-social-link sl-footer-social-linkedin" href="https://www.linkedin.com/company/thesideline/posts/" target="_blank" rel="noopener noreferrer" aria-label="Follow SideLine on LinkedIn" style={{ display: 'flex', opacity: 1 }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
                 <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z" stroke="#fff" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/><circle cx="4" cy="4" r="2" stroke="#fff" strokeWidth="1.75"/>
               </svg>
@@ -3184,10 +3173,10 @@ function HomepageMockup() {
           </div>
 
           {/* Copyright */}
-          <span id="sl-footer-copyright" className="sl-footer-copyright" style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>© 2026 Sideline Sports Inc. All rights reserved.</span>
+          <span id="sl-footer-copyright" className="sl-footer-copyright" style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#fff' }}>© 2026 Sideline Sports Inc. All rights reserved.</span>
 
           {/* Disclaimer */}
-          <p id="sl-footer-disclaimer" className="sl-footer-disclaimer" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', color: 'rgba(255,255,255,0.18)', margin: 0, lineHeight: 1.65, maxWidth: '600px' }}>
+          <p id="sl-footer-disclaimer" className="sl-footer-disclaimer" style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', color: '#fff', margin: 0, lineHeight: 1.65, maxWidth: '600px' }}>
             Third-party names, trademarks and imagery are used solely for identification and editorial purposes. Their use does not imply endorsement or affiliation with Sideline.
           </p>
         </div>
