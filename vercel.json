@@ -38,8 +38,10 @@
     { "source": "/go/", "destination": "/go/index.html" },
     { "source": "/go/:slug", "destination": "/go/index.html" },
     { "source": "/go/:slug/", "destination": "/go/index.html" },
+    { "source": "/app", "destination": "/app/index.html" },
+    { "source": "/app/", "destination": "/app/index.html" },
     {
-      "source": "/((?!api/|privacy|terms-of-service|cookie-notice|contact-us|go(?:/|$)|favicon\\.png|\\.well-known/|styles\\.css|contact-modal\\.js|screenshots/|assets/|club-publication-excludes\\.json).*)",
+      "source": "/((?!api/|privacy|terms-of-service|cookie-notice|contact-us|go(?:/|$)|app(?:/|$)|favicon\\.png|\\.well-known/|styles\\.css|contact-modal\\.js|screenshots/|assets/|club-publication-excludes\\.json).*)",
       "destination": "/index.html"
     }
   ],

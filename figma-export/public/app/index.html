@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Download Sideline</title>
+    <script>
+      (function redirectToStore() {
+        var appStoreUrl = "https://apps.apple.com/us/app/sideline-club/id6789336406";
+        var googlePlayUrl = "https://play.google.com/store/apps/details?id=com.thesidelineapp.app&hl=en_US";
+        var userAgent = navigator.userAgent || navigator.vendor || window.opera || "";
+        var isAndroid = /android/i.test(userAgent);
+        window.location.replace(isAndroid ? googlePlayUrl : appStoreUrl);
+      })();
+    </script>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #EF0107;
+        color: #fff;
+        font-family: system-ui, sans-serif;
+      }
+      a { color: #fff; }
+    </style>
+  </head>
+  <body>
+    <p>Redirecting to the Sideline app… <a href="https://apps.apple.com/us/app/sideline-club/id6789336406">Continue</a></p>
+  </body>
+</html>
