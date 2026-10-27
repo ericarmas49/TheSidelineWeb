@@ -3,6 +3,7 @@ import wordmarkLightImg from '@/imports/SIDELINE1-1.png'
 import emailHeaderWelcomeImg from '@/imports/Universal_Email_Header.png'
 import appScreenshotImg from '@/imports/01KZ9HS7M08TGMZQ1M4XJ7QYHF.jpeg'
 import appScreenshotPng from '@/imports/Header.png'
+import heroPhoneImg from '@/imports/arsenal-hero-phone.png'
 import heroVideoSrc from '@/imports/Semi-Final_2.mp4'
 import appleStoreBadgeImg from '@/imports/apple-app-store.png'
 import googlePlayBadgeImg from '@/imports/google-play-app.png'
@@ -28,10 +29,11 @@ import { getClubLogo } from '@/lib/clubLogos'
 import qrDarkImg from '@/imports/sideline-download-qr-dark.png'
 import qrWhiteImg from '@/imports/sideline-download-qr-white-1.png'
 import appPhoneMockupImg from '@/imports/App_Store_Screenshots___Messaging-2.png'
-import chooseYourClubImg from '@/imports/choose_your_club.png'
-import chooseSourcesImg from '@/imports/Choose_Your_Sources-2.png'
+import howClubImg from '@/imports/arsenal-how-club.png'
+import howSourcesImg from '@/imports/arsenal-how-sources.png'
+import howFeedImg from '@/imports/arsenal-how-feed.png'
+import howExploreImg from '@/imports/arsenal-how-explore.png'
 import shapeYourCoverageImg from '@/imports/Choose_Your_Sources-3.png'
-import discoverImg from '@/imports/Discover.png'
 import { useClubFeed } from '@/hooks/useClubFeed'
 
 function useIsMobile() {
@@ -1962,7 +1964,7 @@ const APP_STEPS = [
     body: "Choose your Premier League club and everything else falls into place—its stories, matches, history, culture and the voices and perspectives of the people who live it with you.",
     detail: ['All 20 Premier League clubs', 'Instant feed personalisation', 'Club colours & branding', 'Switch clubs any time'],
     accent: '#c8102e',
-    img: chooseYourClubImg,
+    img: howClubImg,
   },
   {
     id: 'sources',
@@ -1971,7 +1973,7 @@ const APP_STEPS = [
     body: "Choose the publications, podcasts, channels and feeds you trust to keep you informed. Then, set your preferences to see more of what you want and filter out what you don't to make it truly yours.",
     detail: ['50+ premium publishers', 'Independent journalists', 'Podcast networks', 'Social accounts'],
     accent: '#c8102e',
-    img: chooseSourcesImg,
+    img: howSourcesImg,
   },
   {
     id: 'feed',
@@ -1980,7 +1982,7 @@ const APP_STEPS = [
     body: "Stay on top of everything happening around your club while keeping a pulse on the stories, rivals and developments shaping the league, curated from 600+ trusted sources.",
     detail: ['Content type preferences', 'Read-time filters', 'Smart ranking', 'Save for later'],
     accent: '#c8102e',
-    img: engageDiscoverImg,
+    img: howFeedImg,
   },
   {
     id: 'way',
@@ -1989,7 +1991,7 @@ const APP_STEPS = [
     body: "Give your fandom a home with the analysis, stats, and history that help you know more, go deeper and bring more to every conversation.",
     detail: ['Zero algorithmic interference', 'Chronological or ranked', 'Offline reading', 'Daily digest mode'],
     accent: '#c8102e',
-    img: discoverImg,
+    img: howExploreImg,
   },
 ]
 
@@ -2916,9 +2918,9 @@ function HomepageMockup() {
           <img
             id="sl-hero-phone"
             className="sl-hero-phone"
-            src={appScreenshotPng}
+            src={heroPhoneImg}
             alt="Sideline app screens"
-            style={{ position: 'absolute', right: '24px', bottom: '32px', maxHeight: 'calc(100% - 32px)', width: 'auto', display: 'block' }}
+            style={{ position: 'absolute', right: '24px', bottom: '-50px', maxHeight: 'calc(100% - -30px)', width: 'auto', display: 'block' }}
           />
           <div id="sl-hero-download-bar" className="sl-hero-download-bar" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgb(239, 1, 7)', padding: '9px 18px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
             <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#fff' }}>
