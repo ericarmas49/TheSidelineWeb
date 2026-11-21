@@ -2892,10 +2892,10 @@ function HomepageMockup() {
           <p id="sl-hero-body" className="sl-hero-body" style={{ fontFamily: "'Inter', sans-serif", fontSize: isMobile ? '14px' : '16px', lineHeight: 1.7, color: '#444', margin: '0 0 28px' }}>
             Stop chasing your Premier League club across the internet and take control of your fandom.
           </p>
-          <div id="sl-hero-downloads" className="sl-hero-downloads sl-download-links" style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'nowrap' }}>
+          <div id="sl-hero-downloads" className="sl-hero-downloads sl-download-links" style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
             <a id="sl-download-ios-hero" className="sl-download-ios-link" href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 700, color: '#0a0a0a', letterSpacing: '0.04em', cursor: 'pointer', borderBottom: '1.5px solid #0a0a0a', paddingBottom: '1px', whiteSpace: 'nowrap', textDecoration: 'none' }}>Download for iOS →</a>
             <a id="sl-download-android-hero" className="sl-download-android-link" href={GOOGLE_PLAY_URL} target="_blank" rel="noopener noreferrer" style={{ ...downloadTextLinkStyle, fontSize: '12px' }}>Download for Android →</a>
-            {!isMobile && <img id="sl-hero-qr" className="sl-hero-qr sl-download-qr" src={qrDarkImg} alt="Scan to download Sideline" style={{ width: '72px', height: '72px', objectFit: 'contain', display: 'block', flexShrink: 0 }} />}
+            <img id="sl-hero-qr" className="sl-hero-qr sl-download-qr" src={qrDarkImg} alt="Scan to download Sideline" style={{ width: '72px', height: '72px', objectFit: 'contain', display: 'block', flexShrink: 0 }} />
           </div>
         </div>
 
@@ -3149,7 +3149,7 @@ function HomepageMockup() {
           <div id="sl-footer-downloads" className="sl-footer-downloads sl-download-badges" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: isMobile ? '12px' : '28px', flexShrink: 0 }}>
             <AppStoreBadge id="sl-download-ios-footer" className="sl-download-ios" height={40} />
             <GooglePlayBadge id="sl-download-android-footer" className="sl-download-android" height={40} />
-            {!isMobile && <img id="sl-footer-qr" className="sl-footer-qr sl-download-qr" src={qrWhiteImg} alt="Scan to download Sideline" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />}
+            <img id="sl-footer-qr" className="sl-footer-qr sl-download-qr" src={qrWhiteImg} alt="Scan to download Sideline" style={{ width: '80px', height: '80px', objectFit: 'contain', display: 'block' }} />
           </div>
         </div>
 
