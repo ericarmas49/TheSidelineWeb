@@ -2892,10 +2892,10 @@ function HomepageMockup() {
           <p id="sl-hero-body" className="sl-hero-body" style={{ fontFamily: "'Inter', sans-serif", fontSize: isMobile ? '14px' : '16px', lineHeight: 1.7, color: '#444', margin: '0 0 28px' }}>
             Stop chasing Arsenal across the internet. All the stories, tactics, transfers, and fan voices — in one app, built around your club.
           </p>
-          <div id="sl-hero-downloads" className="sl-hero-downloads sl-download-links" style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'nowrap' }}>
+          <div id="sl-hero-downloads" className="sl-hero-downloads sl-download-links" style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
             <a id="sl-download-ios-hero" className="sl-download-ios-link" href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', fontWeight: 700, color: '#0a0a0a', letterSpacing: '0.04em', cursor: 'pointer', borderBottom: '1.5px solid #0a0a0a', paddingBottom: '1px', whiteSpace: 'nowrap', textDecoration: 'none' }}>Download for iOS →</a>
             <a id="sl-download-android-hero" className="sl-download-android-link" href={GOOGLE_PLAY_URL} target="_blank" rel="noopener noreferrer" style={{ ...downloadTextLinkStyle, fontSize: '12px' }}>Download for Android →</a>
-            {!isMobile && <img id="sl-hero-qr" className="sl-hero-qr sl-download-qr" src={qrDarkImg} alt="Scan to download Sideline" style={{ width: '72px', height: '72px', objectFit: 'contain', display: 'block', flexShrink: 0 }} />}
+            <img id="sl-hero-qr" className="sl-hero-qr sl-download-qr" src={qrDarkImg} alt="Scan to download Sideline" style={{ width: '72px', height: '72px', objectFit: 'contain', display: 'block', flexShrink: 0 }} />
           </div>
         </div>
 
@@ -3139,7 +3139,7 @@ function HomepageMockup() {
           <div id="sl-footer-downloads" className="sl-footer-downloads sl-download-badges" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: isMobile ? '12px' : '28px', flexShrink: 0 }}>
             <AppStoreBadge id="sl-download-ios-footer" className="sl-download-ios" height={40} />
             <GooglePlayBadge id="sl-download-android-footer" className="sl-download-android" height={40} />
-            {!isMobile && <img id="sl-footer-qr" className="sl-footer-qr sl-download-qr" src={qrWhiteImg} alt="Scan to download Sideline" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />}
+            <img id="sl-footer-qr" className="sl-footer-qr sl-download-qr" src={qrWhiteImg} alt="Scan to download Sideline" style={{ width: '80px', height: '80px', objectFit: 'contain', display: 'block' }} />
           </div>
         </div>
 
@@ -3154,12 +3154,12 @@ function HomepageMockup() {
 
           {/* Social icons */}
           <div id="sl-footer-social" className="sl-footer-social" aria-label="Social media" style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-            <a id="sl-footer-social-x" className="sl-footer-social-link sl-footer-social-x" href="https://x.com/TheSidelineClub" target="_blank" rel="noopener noreferrer" aria-label="Follow SideLine on X" style={{ display: 'flex', opacity: 1 }}>
+            <a id="sl-footer-social-x" className="sl-footer-social-link sl-footer-social-x" href="https://x.com/sidelinearsenal" target="_blank" rel="noopener noreferrer" aria-label="Follow SideLine on X" style={{ display: 'flex', opacity: 1 }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L2.012 2.25h6.962l4.265 5.638L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" fill="#fff"/>
               </svg>
             </a>
-            <a id="sl-footer-social-instagram" className="sl-footer-social-link sl-footer-social-instagram" href="https://www.instagram.com/thesideline_club/" target="_blank" rel="noopener noreferrer" aria-label="Follow SideLine on Instagram" style={{ display: 'flex', opacity: 1 }}>
+            <a id="sl-footer-social-instagram" className="sl-footer-social-link sl-footer-social-instagram" href="https://www.instagram.com/sidelinearsenal/" target="_blank" rel="noopener noreferrer" aria-label="Follow SideLine on Instagram" style={{ display: 'flex', opacity: 1 }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
                 <rect x="2" y="2" width="20" height="20" rx="5" stroke="#fff" strokeWidth="1.75"/>
                 <circle cx="12" cy="12" r="4.5" stroke="#fff" strokeWidth="1.75"/>
